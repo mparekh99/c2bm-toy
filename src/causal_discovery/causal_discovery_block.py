@@ -33,7 +33,7 @@ def process_data_for_causal_discovery(data, label_names, causal_discovery_librar
         processed_data = pd.DataFrame(torch.cat((data.c, data.y), dim=1).numpy())
         processed_data = processed_data.astype(int)
         processed_data.columns = label_names
-        processed_data = tr.pandas_data_to_tetrad(processed_data)
+        processed_data = torch.pandas_data_to_tetrad(processed_data)
     else:
         raise ValueError(f"Unknown causal discovery library: {causal_discovery_library}")
     return processed_data
@@ -139,6 +139,8 @@ def postprocess_graph(predicted_graph,
     return adj
 
 def causal_discovery(cfg, dataset, true_graph=None):
+    print(">>> Entered causal_discovery()")
+    print("cfg.causal_discovery =", cfg.causal_discovery)
     if cfg.causal_discovery is not None:
         if cfg.causal_discovery.name == 'llm':
             labels_names = dataset.c_info['names'] + dataset.y_info['names']

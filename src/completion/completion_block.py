@@ -5,11 +5,22 @@ from src.completion.llm.llm_client import llm_client
 from src.plots import maybe_plot_graph
 
 def complete_graph_with_llm(cfg, predicted_graph, dataset_name):
+    print("LLM backend:", cfg.llm.get('name'))
     # Complete the causal graph with an LLM and a RAG
     if cfg.llm is not None:
-        # get_llm_access()
-        # llm_model, llm_tokenizer = get_pretrained_llm(cfg.llm)
-        llm_model = llm_client(LLM=cfg.llm.get('name'), temperature=cfg.llm.get('temperature'), max_tries=cfg.llm.get('max_tries'))
+        get_llm_access()
+        llm_model, llm_tokenizer = get_pretrained_llm(cfg.llm)
+        # llm_model = llm_client(LLM=cfg.llm.get('name'), temperature=0.3, max_tries=cfg.llm.get('max_tries'))
+
+        llm_model = llm_client(
+            LLM=cfg.llm.get('name'),
+            temperature=0.3,
+            max_tries=cfg.llm.get('max_tries'),
+            model=llm_model,
+            tokenizer=llm_tokenizer,
+        )
+
+        # print(llm_model)
         if cfg.rag is not None:
             rag_model = Context_generator(llm=llm_model, 
                                           embedder=cfg.rag.get('embedder'),
@@ -22,13 +33,18 @@ def complete_graph_with_llm(cfg, predicted_graph, dataset_name):
                                           verbose = cfg.rag.get('verbose'))
         else:
             rag_model = None
+        print(cfg.dataset.get('label_descriptions', None))
         node_label_description = cfg.dataset.get('label_descriptions', None)
+        print("OCKOKOEWFOENFOIEWOENFOIFEIO")
         completed_graph = complete_graph(predicted_graph,
                                          node_label_description,
                                          llm_model, 
                                          rag_model, 
                                          cfg.completion)
+
+        print("PIRATESS")
         maybe_plot_graph(completed_graph, 'completed_graph')
+        print("FINISHED????????")
         return completed_graph
     else:
         return predicted_graph

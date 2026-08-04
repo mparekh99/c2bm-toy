@@ -53,34 +53,50 @@ def main(cfg: DictConfig) -> None:
     with open_dict(cfg): cfg.update(device="cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using {cfg.device} device")
 
-    # adjust config
+    # aprint(dataset)djust config
     cfg = clean_empty_configs(cfg)
 
     # instantiate the dataset, split into train, val, test
     # preprocess all of them and save the preprocessed dataset
     dataset, true_graph, dataset_directory = get_dataset(cfg)
+    # 
+
+    print("=== after get_dataset ===", flush=True)
+    print("load_true_graph:", cfg.dataset.load_true_graph, flush=True)
+    print("load_graph:", cfg.dataset.load_graph, flush=True)
+    print("causal_discovery:", cfg.causal_discovery, flush=True)
+    print("dataset_directory:", dataset_directory, flush=True)
 
     # get the causal graph
     if cfg.dataset.load_true_graph:
+        print("loading true graph", flush=True)
         graph = true_graph
     else:
         if cfg.dataset.load_graph:
+            print("loading cached graph.pkl", flush=True)
             with open(os.path.join(dataset_directory, "graph.pkl"), 'rb') as f:
+                print("OPENED???")
                 graph = pickle.load(f)
+                print("Mihir")
         else:
+            print("starting causal discovery...")
             # estimate causal graph with causal structural learning algorithms
             predicted_graph = causal_discovery(cfg, dataset, true_graph)
+            print("finished causal discovery")
             if true_graph is not None:
                 hamming = hamming_distance(true_graph, predicted_graph)
                 print('(after CD) structural hamming distance: ', hamming)    
 
+            print("OOROCHI")
             # complete the causal graph with LLM and RAG
             completed_graph = complete_graph_with_llm(cfg, predicted_graph, cfg.dataset.name)
+            print("COOOKs")
             if true_graph is not None:
+                print("LLMMMMMMMM")
                 hamming = hamming_distance(true_graph, completed_graph)
                 print('(after LLM + RAG) structural hamming distance: ', hamming)
             graph = completed_graph
-
+            print("SAVING GRAPH???????")
             # save graph
             with open(os.path.join(dataset_directory, "graph.pkl"), 'wb') as f:
                 pickle.dump(graph, f)
@@ -90,7 +106,9 @@ def main(cfg: DictConfig) -> None:
     # edge can only be directed at this stage, the following function is just here in 
     # case the CD + LLM + RAG pipeline is modified and could produce bidirected or undirected edges
     graph, dataset = remove_problematic_edges(graph, dataset)
+
     y_index = list(graph.index).index(dataset.y_info['names'][0]); assert y_index == len(graph) - 1
+
     # (part 2): remove cycles
     graph = remove_cycles(graph, y_index)
 
@@ -104,10 +122,14 @@ def main(cfg: DictConfig) -> None:
     print('intervention policy:', interv_policy)
     print('intervention policy names:', ip_names)
 
+
+
     # update config based on the dataset
     # e.g., set input and output size of the model
     cfg = update_config_from_data(cfg, dataset)
     cfg = maybe_update_config_with_graph(cfg, graph, interv_policy)
+
+    
     
     ############ model block ########################################################################################
     [dataset.data[split].register_graph(graph) for split in dataset.data]
@@ -123,7 +145,8 @@ def main(cfg: DictConfig) -> None:
                                  batch_size=cfg.dataset.batch_size, 
                                  collate_fn=static_graph_collate,
                                  num_workers=cfg.dataset.num_workers)
-    
+    print("HEHEHEHEHEHEHEHEHEHEHE-------------------------------------------")
+    print(cfg.engine)
     engine = instantiate(cfg.engine)
     try:
         trainer = Trainer(cfg)
