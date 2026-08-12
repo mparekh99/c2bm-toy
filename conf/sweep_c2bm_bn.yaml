@@ -1,7 +1,7 @@
 defaults:
   - default
   - override causal_discovery: ges
-  - override llm: gpt
+  - override llm: llama
   - override rag: standard
   - _self_  
   # override this to use the new list sweeper:
@@ -20,10 +20,10 @@ hydra:
       # possible models are:
       # blackbox, blackbox_multi, cbm_linear, cbm_mlp, cem, c2bm
       model: c2bm
-      seed: 1 #,2,3,4,5
+      seed: 1  #[1,2,3,4,5]
     # additional list sweeper
     list_params:
-      dataset: asia #, sachs, insurance, alarm, hailfinder
+      dataset: toy
       model.hidden_size:      [64]    
       model.concept_loss_weight: [0.8]
       model.concept_hidden_size: [4]
@@ -34,7 +34,7 @@ policy: nodes_true # levels_true, levels_pred, nodes_true, nodes_pred, random
 dataset:
   load_embeddings: false
   load_graph: false
-  load_true_graph: false
+  load_true_graph: true
   batch_size: 512  # 128 (Pneumo, all SCBM), 512 (all others)
   autoencoder:
     noise: 0.5  # for bndatasets only
@@ -45,7 +45,7 @@ engine:
   test_interv_noise: 0.8   # for bndatasets only
 
 trainer:
-  logger: null # wandb, null
+  logger: null  # null, wandb
   devices: [0]
   max_epochs: 500
   patience: 30

@@ -26,6 +26,7 @@ title = {'celeba': 'CelebA',
          'cub': 'CUB',
          'cub_original': 'CUB_original',
          'synthetic': 'Synthetic',
+         'toy_true': 'Toy'
 }
 
 def cumulative_improvement(means, stds):
@@ -98,6 +99,9 @@ root_result_dir =   {
                         # 'asia_true': { 
                         #     'c2bm':        [f'outputs/multirun/2025-05-15/11-45-48_c2bm_bn/{i}' for i in [0,3,6,9,12]],
                         # },
+                        'toy_true': { 
+                            'c2bm':        [f'outputs/multirun/2026-08-11/rerun_toy/{i}' for i in [0,1,2,3,4]],
+                        },
                         # 'sachs_true': { 
                         #     'c2bm':        [f'outputs/multirun/2025-05-15/11-45-48_c2bm_bn/{i}' for i in [1,4,7,10,13]],
                         # },
@@ -112,15 +116,15 @@ root_result_dir =   {
                         # },
     
                         # # learned graph
-                        'asia': { 
-                            'blackbox':   [f'outputs/multirun/2025-05-14/22-56-37_blackbox_bn/{i}'  for i in [0,5,10,15,20]],   # 5 seeds
-                            # 'blackbox_m': [f'outputs/multirun/2025-05-15/14-45-32_blackbox_multi_bn/{i}'  for i in [0,5,10,15,20]],
-                            'cbm_linear': [f'outputs/multirun/2025-05-14/22-56-44_cbm_linear_bn/{i}'for i in [0,5,10,15,20]],
-                            'cbm_mlp':    [f'outputs/multirun/2025-05-14/22-56-50_cbm_mlp_bn/{i}'   for i in [0,5,10,15,20]],
-                            'cem':        [f'outputs/multirun/2025-05-14/22-56-55_cem_bn/{i}'       for i in [0,5,10,15,20]],
-                            'scbm':       [f'outputs/multirun/2025-05-14/22-57-06_scbm_global_bn/{i}' for i in [0,5,10,15,20]],
-                            'c2bm':       [f'outputs/multirun/2025-05-14/22-57-00_c2bm_bn/{i}'      for i in [0,5,10,15,20]]
-                        },
+                        # 'asia': { 
+                        #     'blackbox':   [f'outputs/multirun/2025-05-14/22-56-37_blackbox_bn/{i}'  for i in [0,5,10,15,20]],   # 5 seeds
+                        #     # 'blackbox_m': [f'outputs/multirun/2025-05-15/14-45-32_blackbox_multi_bn/{i}'  for i in [0,5,10,15,20]],
+                        #     'cbm_linear': [f'outputs/multirun/2025-05-14/22-56-44_cbm_linear_bn/{i}'for i in [0,5,10,15,20]],
+                        #     'cbm_mlp':    [f'outputs/multirun/2025-05-14/22-56-50_cbm_mlp_bn/{i}'   for i in [0,5,10,15,20]],
+                        #     'cem':        [f'outputs/multirun/2025-05-14/22-56-55_cem_bn/{i}'       for i in [0,5,10,15,20]],
+                        #     'scbm':       [f'outputs/multirun/2025-05-14/22-57-06_scbm_global_bn/{i}' for i in [0,5,10,15,20]],
+                        #     'c2bm':       [f'outputs/multirun/2026-08-05/asia_true_graph/{i}'      for i in [0,1,2,3,4]]
+                        # },
                         # 'sachs': { 
                         #     'blackbox':   [f'outputs/multirun/2025-05-14/22-56-37_blackbox_bn/{i}'  for i in [1,6,11,16,21]],
                         #     'blackbox_m': [f'outputs/multirun/2025-05-15/14-45-32_blackbox_multi_bn/{i}'  for i in [1,6,11,16,21]],
@@ -128,7 +132,7 @@ root_result_dir =   {
                         #     'cbm_mlp':    [f'outputs/multirun/2025-05-14/22-56-50_cbm_mlp_bn/{i}'   for i in [1,6,11,16,21]],
                         #     'cem':        [f'outputs/multirun/2025-05-14/22-56-55_cem_bn/{i}'       for i in [1,6,11,16,21]],
                         #     'scbm':       [f'outputs/multirun/2025-05-14/22-57-06_scbm_global_bn/{i}' for i in [1,6,11,16,21]],
-                        #     'c2bm':       [f'outputs/multirun/2025-05-14/22-57-00_c2bm_bn/{i}'      for i in [1,6,11,16,21]]
+                        #     'c2bm':       [f'outputs/multirun/2026-08-05/sachs_true_graph/{i}'      for i in [0,1,2,3,4]]
                         # },
                         # 'insurance': { 
                         #     'blackbox':   [f'outputs/multirun/2025-05-14/22-56-37_blackbox_bn/{i}'  for i in [2,7,12,17,22]],
@@ -146,7 +150,7 @@ root_result_dir =   {
                         #     'cbm_mlp':    [f'outputs/multirun/2025-05-14/22-56-50_cbm_mlp_bn/{i}'   for i in [3,8,13,18,23]],
                         #     'cem':        [f'outputs/multirun/2025-05-15/03-17-10_cem_alarm/{i}'    for i in [0,1,2,3,4]],
                         #     'scbm':       [f'outputs/multirun/2025-05-14/22-57-06_scbm_global_bn/{i}' for i in [3,8,13,18,23]],
-                        #     'c2bm':       [f'outputs/multirun/2025-05-14/22-57-00_c2bm_bn/{i}'      for i in [3,8,13,18,23]]
+                            # 'c2bm':       [f'outputs/multirun/2026-08-06/alarm_true_graph/{i}'      for i in [0,1,2,3,4]]
                         # },
                         # 'hailfinder': { 
                         #     'blackbox':   [f'outputs/multirun/2025-05-14/22-56-37_blackbox_bn/{i}'  for i in [4,9,14,19,24]],
@@ -158,13 +162,13 @@ root_result_dir =   {
                         #     'c2bm':       [f'outputs/multirun/2025-05-14/22-57-00_c2bm_bn/{i}'      for i in [4,9,14,19,24]]
                         # },
                         # 'celeba': {       
-                        #     'blackbox':   [f'outputs/multirun/2025-05-15/02-45-59_blackbox_real/{i}' for i in [0,3,6,9,12]],
-                        #     'blackbox_m': [f'outputs/multirun/2025-05-15/15-10-07_blackbox_multi_real/{i}'  for i in [0,3,6,9,12]],
-                        #     'cbm_linear': [f'outputs/multirun/2025-05-15/02-46-40_cbm_linear_real/{i}' for i in [0,3,6,9,12]],
-                        #     'cbm_mlp':    [f'outputs/multirun/2025-05-15/02-48-29_cbm_mlp_real/{i}' for i in [0,3,6,9,12]],
-                        #     'cem':        [f'outputs/multirun/2025-05-15/02-47-31_cem_real/{i}' for i in [0,3,6,9,12]],
-                        #     'scbm':       [f'outputs/multirun/2025-05-11/00-45-36_scbm_celeba/{i}' for i in [0,1,2,3,4]],
-                        #     'c2bm':       [f'outputs/multirun/2025-05-15/02-47-45_c2bm_real/{i}' for i in [0,3,6,9,12]],
+                            # 'blackbox':   [f'outputs/multirun/2025-05-15/02-45-59_blackbox_real/{i}' for i in [0,3,6,9,12]],
+                            # 'blackbox_m': [f'outputs/multirun/2025-05-15/15-10-07_blackbox_multi_real/{i}'  for i in [0,3,6,9,12]],
+                            # 'cbm_linear': [f'outputs/multirun/2025-05-15/02-46-40_cbm_linear_real/{i}' for i in [0,3,6,9,12]],
+                            # 'cbm_mlp':    [f'outputs/multirun/2025-05-15/02-48-29_cbm_mlp_real/{i}' for i in [0,3,6,9,12]],
+                            # 'cem':        [f'outputs/multirun/2025-05-15/02-47-31_cem_real/{i}' for i in [0,3,6,9,12]],
+                            # 'scbm':       [f'outputs/multirun/2025-05-11/00-45-36_scbm_celeba/{i}' for i in [0,1,2,3,4]],
+                            # 'c2bm':       [f'outputs/multirun/2026-08-09/fairness_run/{i}' for i in [0,1,2,3,4]],
                         # },
                         # 'cub': {
                         #     'blackbox':   [f'outputs/multirun/2025-05-15/02-45-59_blackbox_real/{i}' for i in [1,4,7,10,13]],

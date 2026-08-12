@@ -1,0 +1,47 @@
+defaults:
+  - commons
+  - _self_
+
+name: toy
+loader:
+    _target_: src.data.datasets.bndataset.BNDataset
+    dag_name: toy
+    task_name: Delivery_Feasibility
+    dataset_n_samples: 10000
+    val_size: 0.1 # 10% of total dataset
+    test_size: 0.2
+    ftune_size: 0.      
+    ftune_val_size: 0.  
+    bias:
+        train:
+            mode: false   #False / custom
+            kwargs: {}
+        test:
+            mode: false
+            kwargs: {}
+
+autoencoder:
+  noise: 0.
+  latent_dim: 32
+  lr: 0.0005
+  epochs: 2000
+  batch_size: 512
+  patience: 50
+
+is_image_dataset: false
+reduce_fraction: Null
+onehot_to_concepts: false
+
+label_descriptions:
+    Cup_Overfill: "a binary variable indicating if the cup has been overfilled or not."
+    Path_Clear: "a binary variable indicating if the path to the table is clear or not."
+    Coffee_Hot: "a binary variable indicating if the coffee is hot or not."
+    Grip_Stability: "a binary variable indicating if the cup can be gripped stably or not."
+    Spill_Risk: "a binary variable indicating if there is a risk of spilling the coffee or not."
+    Flat_Surface: "a binary variable indicating if the table surface is flat or not."
+    User Stress: "a binary variable indicating if the user is stressed or not."
+    Delivery_Feasibility: "a binary variable indicating if delivering the coffee is feasible or not."
+    Laptop_Nearby: "a binary variable indicating if the laptop is nearby or not."
+    Table_Clutter: "a binary variable indicating if the table is cluttered or not."
+    Safe_Placement : "a binary variable indicating if a safe placement location for the cup is available or not."
+    Wind_Present: "a binary variable indicating if the wind is present or not."
