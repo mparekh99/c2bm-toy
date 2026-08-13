@@ -4,7 +4,7 @@ import pandas as pd
 import re
 from collections import Counter
 from langchain_huggingface import HuggingFacePipeline
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from transformers import pipeline
 from langchain_core.output_parsers import StrOutputParser
 
@@ -146,7 +146,14 @@ def complete_graph(adj_matrix_pd,
                 1. {c1} - {c1_description}
                 2. {c2} - {c2_description}
                 """
-                retrieved_context = str(rag.invoke(context_query))
+
+                try:
+                    retrieved_context = str(rag.invoke(context_query))
+                except Exception as e:
+                    import traceback
+                    traceback.print_exc()
+                    raise
+                # retrieved_context = str(rag.invoke(context_query))
                 
             else:
                 retrieved_context = "No context available."

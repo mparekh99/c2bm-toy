@@ -52,6 +52,9 @@ def _get_logger(cfg: DictConfig):
 class Trainer(_Trainer_):
     def __init__(self, cfg: DictConfig):
         callbacks = []
+        print("Below is output for monitor: ")
+        print(cfg.trainer.get("monitor", None))
+
         if cfg.trainer.get("monitor", None) is not None:
             if cfg.trainer.get("patience", None) is not None:
                 callbacks.append(
@@ -77,8 +80,10 @@ class Trainer(_Trainer_):
             )
         )
         # callbacks.append(GradientMonitor_afterB())
+        
         if cuda.is_available():
             accelerator = "gpu"
+            print("Using my GPU")
         else:
             accelerator = "cpu"
         if cfg.trainer.get("logger") is not None:

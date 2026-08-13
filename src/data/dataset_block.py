@@ -20,6 +20,7 @@ def get_dataset(cfg):
     Returns:
         dataset: the preprocessed dataset
     """
+    print(cfg)
     dataset_directory = os.path.join(str(CACHE / cfg.dataset.name))
     os.makedirs(dataset_directory, exist_ok=True)
 
@@ -35,7 +36,6 @@ def get_dataset(cfg):
     else:
         with open(destination_path, 'rb') as f: 
             dataset = pickle.load(f)
-    
     true_graph = dataset.load_ground_truth_graph()
     maybe_plot_graph(true_graph, 'true_graph')
     return dataset, true_graph, dataset_directory

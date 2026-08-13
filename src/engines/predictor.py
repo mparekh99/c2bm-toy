@@ -175,10 +175,12 @@ class Predictor(pl.LightningModule):
 
             # # interv test metrics
             # --- fairness metrics ---
-            # self.cace_test = MetricCollection(
-            #     metrics = {'before': self._check_metric(metrics.get('cace')),
-            #                'after': self._check_metric(metrics.get('cace'))},   
-            #     prefix="test_intervention/cace_test/")
+            self.cace_neighbor = MetricCollection(
+                metrics = {'Cup_Overfill_before': self._check_metric(metrics.get('cace')),
+                           'Grip_Stability_before': self._check_metric(metrics.get('cace')),
+                           'Cup_Overfill_after': self._check_metric(metrics.get('cace')),
+                           'Grip_Stability_after': self._check_metric(metrics.get('cace'))},   
+                prefix="test_intervention/cace_neighborhood/")
 
             self.cace_fairness = MetricCollection(
                 metrics={
@@ -359,11 +361,11 @@ class Predictor(pl.LightningModule):
 
             interv_index, interv_values = get_test_intervention_index(c.shape, i, values=1)
             y_output, c_output = self.forward(**{'x':x, 'c':interv_values, 'intervention_index':interv_index})
-            y_hat_before_do_1, _ = self.model.filter_output_for_metric(y_output, c_output)
+            y_hat_before_do_1, c_hat_before_do_1 = self.model.filter_output_for_metric(y_output, c_output)
             interv_index, interv_values = get_test_intervention_index(c.shape, i, values=0)
             # assert y_output == y_hat_before_do_1
             y_output, c_output = self.forward(**{'x':x, 'c':interv_values, 'intervention_index':interv_index})
-            y_hat_before_do_0, _ = self.model.filter_output_for_metric(y_output, c_output)
+            y_hat_before_do_0, c_hat_before_do_0 = self.model.filter_output_for_metric(y_output, c_output)
             # If arguement == task node
             # Determining a node's presence and absence through a forward pass of c2bm and then 
             # Compute the average effect on task node to be 1. 
@@ -381,27 +383,38 @@ class Predictor(pl.LightningModule):
 
             # self.cace['before'].update(y_hat_before_do_1, y_hat_before_do_0)
             pair_name = f'{c_1}_to_{c_2}'
-
+            
             self.cace[f'{pair_name}/before'].update(
                 y_hat_before_do_1,
                 y_hat_before_do_0
             )
 
+            # k = self.c_names.index('Cup_Overfill')
+            # p = self.c_names.index('Grip_Stability')            
+
+            # self.cace_neighbor['Cup_Overfill_before'].update(c_hat_before_do_1[self.c_names[k]], c_hat_before_do_0[self.c_names[k]])
+            # self.cace_neighbor['Grip_Stability_before'].update(c_hat_before_do_1[self.c_names[p]], c_hat_before_do_0[self.c_names[p]])
+
             j = self.c_names.index(c_2)
 
             interv_index, interv_values = get_test_intervention_index(c.shape, [j,i], values=[1,1])
             y_output, c_output = self.forward(**{'x':x, 'c':interv_values, 'intervention_index':interv_index})
-            y_hat_after_do_1, _ = self.model.filter_output_for_metric(y_output, c_output)
+            y_hat_after_do_1, c_hat_after_do_1 = self.model.filter_output_for_metric(y_output, c_output)
             interv_index, interv_values = get_test_intervention_index(c.shape, [j,i], values=[1,0])
             y_output, c_output = self.forward(**{'x':x, 'c':interv_values, 'intervention_index':interv_index})
 
-            y_hat_after_do_0, _ = self.model.filter_output_for_metric(y_output, c_output)
+            y_hat_after_do_0, c_hat_after_do_0 = self.model.filter_output_for_metric(y_output, c_output)
             # self.cace['after'].update(y_hat_after_do_1, y_hat_after_do_0)
             self.cace[f'{pair_name}/after'].update(
                 y_hat_after_do_1,
                 y_hat_after_do_0
             )
-         
+
+            # self.cace_neighbor['Cup_Overfill_before'].update(c_hat_after_do_1[self.c_names[k]], c_hat_after_do_0[self.c_names[k]])
+            # self.cace_neighbor['Grip_Stability_before'].update(c_hat_after_do_1[self.c_names[p]], c_hat_after_do_0[self.c_names[p]])
+
+
+            # self.log_metrics(self.cace_neighbor, batch_size=batch['batch_size'])
             self.log_metrics(self.cace, batch_size=batch['batch_size'])
 
 
@@ -468,7 +481,7 @@ class Predictor(pl.LightningModule):
         self.log_loss("test", test_loss, batch_size=batch['batch_size'])
         # test-time interventions
         # self.test_intervention_fairness(batch, 'VENTLUNG', 'CATECHOL')
-        self.concept_to_concept_fairness(batch, 'KINKEDTUBE','VENTALV' , 'CATECHOL')
+        # self.concept_to_concept_fairness(batch, 'KINKEDTUBE','VENTALV' , 'CATECHOL')
         # self.test_intervention(batch)
         # # Single cace
         # self.cace_test(batch, 'Wind_Present', 'Delivery_Feasibility')
@@ -482,7 +495,7 @@ class Predictor(pl.LightningModule):
         # self.cace_test(batch, 'Safe_Placement', 'Delivery_Feasibility')
         # # Block a node's effect on task node
         # self.cace_test(batch, 'Cup_Overfill', 'Spill_Risk')
-        # self.cace_test(batch, 'Wind_Present', 'Spill_Risk')
+        self.cace_test(batch, 'Wind_Present', 'Spill_Risk')
         # self.cace_test(batch, 'Grip_Stability', 'Spill_Risk')
         # self.cace_test(batch, 'Laptop_Nearby', 'Safe_Placement')
         # self.cace_test(batch, 'Table_Clutter', 'Safe_Placement')

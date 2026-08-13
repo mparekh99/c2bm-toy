@@ -7,7 +7,8 @@ from torchvision.datasets import CelebA
 from typing import Union, List, Optional
 
 from src.data.utils import split_dataset
-
+import pandas as pd
+import numpy as np
 
 
 class CelebADataset():
@@ -43,9 +44,29 @@ class CelebADataset():
         self.to_keep = list(to_keep.keys()) if to_keep is not None else None
         self.data = {}
 
-    def load_ground_truth_graph(self): 
+        self.graph_path = CACHE / "CelebA" / "celeba" / "graph.pkl"
         self.adj = None
-        return self.adj
+
+
+    def load_ground_truth_graph(self): 
+
+        adj = pd.read_pickle(self.graph_path)
+
+        if not isinstance(adj, pd.DataFrame):
+            raise TypeError(f"graph.pkl must contain a pandas DataFrame, got {type(adj)}")
+
+        # Make sure node order matches the dataset
+        node_labels = self.c_info["names"] + self.y_info["names"]
+
+        missing = [n for n in node_labels if n not in adj.index or n not in adj.columns]
+        if missing:
+            raise ValueError(f"Graph is missing nodes: {missing}")
+
+        adj = adj.loc[node_labels, node_labels].astype(int)
+
+        self.adj = adj
+        return adj
+
 
     def split(self):
         """ 

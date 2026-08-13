@@ -20,7 +20,7 @@ hydra:
       # possible models are:
       # blackbox, blackbox_multi, cbm_linear, cbm_mlp, cem, c2bm
       model: c2bm
-      seed: 1  #[1,2,3,4,5]
+      seed: 1 #[1,2,3,4,5]
     # additional list sweeper
     list_params:
       dataset: toy
@@ -45,7 +45,7 @@ engine:
   test_interv_noise: 0.8   # for bndatasets only
 
 trainer:
-  logger: null  # null, wandb
+  logger: wandb  # null, wandb
   devices: [0]
   max_epochs: 500
   patience: 30

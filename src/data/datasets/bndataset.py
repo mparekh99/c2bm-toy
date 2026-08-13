@@ -97,6 +97,7 @@ class BNDataset():
                                        bias_mode = self.bias['test'].get('mode'),
                                        bias_kwargs = self.bias['test'].get('kwargs'),
                                        to_keep=self.to_keep)
+        print(self.data['test'].X[:5])
         self.data['train'].split_type = 'train'
         self.data['val'].split_type = 'val'
         if self.ftune_size > 0:
@@ -135,6 +136,7 @@ class _BNDataset(torch.utils.data.Dataset):
         self.complete_bottleneck_names = [name for name in list(self.data.columns) if name != task_name]
         
         reordered_names = concept_names + [task_name]
+        print(reordered_names)
         self.y = torch.Tensor(self.data.loc[:,task_name].values).float().unsqueeze(1)
         self.c = torch.Tensor(self.data.loc[:,concept_names].values).float()
         self.complete_c = torch.Tensor(self.data.loc[:,self.complete_bottleneck_names].values).float()

@@ -18,6 +18,9 @@ from src.data.labelfree_preprocessing import load_pretrained_clip_model, generat
 from src.completion.concepts_retrieval import concepts_generation, filtering_concepts_from_llm
 from src.data.datasets.synthetic import get_synthetic_datasets, SyntheticDatasetContainer
 
+
+import traceback
+
 def generate_img_embeddings(dataset: torch.utils.data.Dataset,
                            batch_size: int = 32,
                            device: str = 'cpu',
@@ -91,6 +94,7 @@ def preprocess_dataset(cfg, _dataset, device, backbone) -> dict:
 
     # colormnist
     dataset_name = cfg.dataset.get('name').replace('_ood', '')
+    print(dataset_name)
     if dataset_name == 'colormnist':
         dataset.split()
         if cfg.dataset.get('onehot_to_concepts') == True: 
@@ -104,20 +108,31 @@ def preprocess_dataset(cfg, _dataset, device, backbone) -> dict:
             dataset = onehot_to_concepts_ColorMNIST(dataset)
     
     elif dataset_name in ['celeba', 'celeba_reduced', 'celeba_unfair', 'cub_causal_struct', 'cub']:
-        dataset.split()
+        print("ENTERED IF STATEMETN ")
+
+        try:
+            dataset.split()
+        except Exception as e:
+            print("dataset.split() crashed:", repr(e), flush=True)
+            traceback.print_exc()
+            raise
+        print("SPLIT???", flush=True)
+        # dataset.split()
+        # print("SPLIT???")
         if dataset_name in ['cub_causal_struct', 'cub']:
             dataset.data['train'].update_lists()
             dataset.data['val'].update_lists()
             dataset.data['test'].update_lists()
-
+        print("HERE")
         dataset = maybe_reduce(cfg.dataset.get('reduce_fraction', None), dataset)
+        print("OOOBBOOOY")
         dataset = generate_img_embeddings(dataset, 
                                           batch_size=256,
                                           device=device,
                                           backbone=backbone)         
 
     elif dataset_name in ['asia', 'asia_reduced', 'alarm', 'alarm_reduced', \
-                          'sachs', 'sachs_reduced', 'hailfinder', 'insurance']:
+                          'sachs', 'sachs_reduced', 'hailfinder', 'insurance', 'toy']:
         dataset = maybe_reduce(cfg.dataset.get('reduce_fraction', None), dataset)
         
         all_var = dataset.c_info_complete['names'] + dataset.y_info['names'] # variables have been reordered

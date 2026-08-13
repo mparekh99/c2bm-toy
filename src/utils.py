@@ -296,6 +296,7 @@ def check_graph(graph_levels, true_graph):
 
 def get_policy_from_graph(graph, y_index):
     # get the levels of the graph
+    print(graph)
     torch_values_graph = torch.tensor(graph.values)
     policy = get_graph_levels(torch_values_graph, y_index)
     # remove the task node
@@ -307,7 +308,7 @@ def get_policy_from_graph(graph, y_index):
     return policy, level_names
 
 def get_intervention_policy(type, pred_graph, true_graph, y_index):
-    assert true_graph is not None or pred_graph is not None, 'Intervention policy: a graph is required for any policy.'
+    assert true_graph is not None or pred_graph is not None, 'Inolitervention pcy: a graph is required for any policy.'
     names = list(pred_graph.index) if pred_graph is not None else list(true_graph.index)
 
     if type == 'random':

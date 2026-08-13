@@ -63,16 +63,32 @@ def main(cfg: DictConfig) -> None:
     with open_dict(cfg): cfg.update(device="cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using {cfg.device} device")
 
+    # checkpoint_path = os.path.join(
+    #     get_original_cwd(),
+    #     "outputs",
+    #     "multirun",
+    #     "2026-08-11",
+    #     "rerun_toy",
+    #     "0",
+    #     "checkpoints",
+    #     "epoch=42-step=602.ckpt",
+    # )
+
     checkpoint_path = os.path.join(
         get_original_cwd(),
         "outputs",
         "multirun",
         "2026-08-11",
         "rerun_toy",
-        "0",
+        "1",
         "checkpoints",
-        "epoch=42-step=602.ckpt",
+        "last.ckpt",
     )
+
+# outputs/multirun/2026-08-05/asia_true_graph/1/checkpoints/last.ckpt
+
+
+# outputs/multirun/2026-08-06/alarm_true_graph
 
     # print("Loading checkpoint:", checkpoint_path)
     # print("Exists:", os.path.exists(checkpoint_path))

@@ -32,7 +32,7 @@ policy: nodes_true # levels_true, levels_pred, nodes_true, nodes_pred, random
 dataset:
   load_embeddings: false
   load_graph: false
-  load_true_graph: false
+  load_true_graph: true
   batch_size: 128  # 128 (Pneumo, all SCBM), 512 (all others)
   num_workers: 0
 

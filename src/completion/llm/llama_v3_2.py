@@ -34,16 +34,22 @@ def get_pretrained_llm(cfg):
         ValueError: If the model ID is invalid or if loading fails.
     """
     # if the file exist in the 'pretrained_llms' directory, load it
-    # if os.path.exists(f'pretrained_llms/{cfg.name}'):
-    #     model = AutoModelForCausalLM.from_pretrained(f'pretrained_llms/{cfg.name}_model', device_map="auto")
-    #     tokenizer = AutoTokenizer.from_pretrained(f'pretrained_llms/{cfg.name}_tokenizer')
-    # else:
-    # print(f"The model {cfg.name} is not found in the 'pretrained_llms' directory.")
+    if os.path.exists(f'pretrained_llms/{cfg.name}'):
+        model = AutoModelForCausalLM.from_pretrained(f'pretrained_llms/{cfg.name}_model', device_map="auto")
+        tokenizer = AutoTokenizer.from_pretrained(f'pretrained_llms/{cfg.name}_tokenizer')
+    else:
+        print(f"The model {cfg.name} is not found in the 'pretrained_llms' directory.")
     
+    print("cfg.load_in_fourbit =", cfg.load_in_fourbit, flush=True)
+    print("cfg.llm_name =", cfg.llm_name, flush=True)
+    print("cfg.llm_model_kwargs =", cfg.llm_model_kwargs, flush=True)
+    print("cwd =", os.getcwd(), flush=True)
     # Load the model with or without quantization
     if not cfg.load_in_fourbit:
+        print("LOADING ", flush=True)
         model = AutoModelForCausalLM.from_pretrained(cfg.llm_name, 
                                                        **cfg.llm_model_kwargs)
+        print("FINISHED MODEL LOAD")
     else:
         # ------------------------------------------------
         # TODO: CHECK (also check dtype)
@@ -66,14 +72,17 @@ def get_pretrained_llm(cfg):
         model = AutoModelForCausalLM.from_pretrained(cfg.llm_name, 
                                                      **cfg.llm_model_kwargs,
                                                      quantization_config=bnb_config)
-        # ------------------------------------------------
-        # ------------------------------------------------
 
+        print("FINISHED MODEL LOAD", flush=True)
+        # ------------------------------------------------
+        # ------------------------------------------------
+    print("BEFORE TOKENIZER", flush=True)
     # Load the tokenizer
     tokenizer = AutoTokenizer.from_pretrained(cfg.llm_name)
+    print("got tokenizer", flush=True)
 
         # save the model and tokenizer
-        # model.save_pretrained(f'pretrained_llms/{cfg.name}_model')
-        # tokenizer.save_pretrained(f'pretrained_llms/{cfg.name}_tokenizer')
+    # model.save_pretrained(f'pretrained_llms/{cfg.name}_model')
+    # tokenizer.save_pretrained(f'pretrained_llms/{cfg.name}_tokenizer')
 
     return model, tokenizer

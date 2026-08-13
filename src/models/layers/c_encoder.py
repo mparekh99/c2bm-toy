@@ -49,12 +49,13 @@ class ConceptBlock(nn.Module):
         if c_gt is not None and intervention_index is not None:
             c_hat_probs = maybe_intervene(c_hat_probs, c_gt, intervention_index)
         
-        # compute the weighted average between concepts embedding and probabilities
+        #ng a compute the weighted average between concepts embeddind probabilities
         first = c_values_embedding.reshape(-1, self.c_cardinality, self.hidden_size)
         second = c_hat_probs.unsqueeze(-1)
         c_embedding = (first * second).sum(dim=1)
 
         out = []
+
         if 'embs' in to_return:
             out.append(c_embedding)
         if 'probs' in to_return:

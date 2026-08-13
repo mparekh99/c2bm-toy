@@ -32,6 +32,17 @@ from src.utils import get_intervention_policy, remove_cycles, remove_problematic
 from src.utils import clean_empty_configs, update_config_from_data, maybe_update_config_with_graph
 from src.utils import finetune_model
 
+
+
+import torch
+
+torch.set_printoptions(
+    threshold=float("inf"),
+    linewidth=1000,
+    sci_mode=False,
+)
+
+
 # Suppress specific warning
 warnings.filterwarnings("ignore", message="When grouping with a length-1 list-like")
     
@@ -87,16 +98,13 @@ def main(cfg: DictConfig) -> None:
                 hamming = hamming_distance(true_graph, predicted_graph)
                 print('(after CD) structural hamming distance: ', hamming)    
 
-            print("OOROCHI")
             # complete the causal graph with LLM and RAG
             completed_graph = complete_graph_with_llm(cfg, predicted_graph, cfg.dataset.name)
-            print("COOOKs")
+            
             if true_graph is not None:
-                print("LLMMMMMMMM")
                 hamming = hamming_distance(true_graph, completed_graph)
                 print('(after LLM + RAG) structural hamming distance: ', hamming)
             graph = completed_graph
-            print("SAVING GRAPH???????")
             # save graph
             with open(os.path.join(dataset_directory, "graph.pkl"), 'wb') as f:
                 pickle.dump(graph, f)
@@ -145,15 +153,23 @@ def main(cfg: DictConfig) -> None:
                                  batch_size=cfg.dataset.batch_size, 
                                  collate_fn=static_graph_collate,
                                  num_workers=cfg.dataset.num_workers)
-    print("HEHEHEHEHEHEHEHEHEHEHE-------------------------------------------")
+
     print(cfg.engine)
     engine = instantiate(cfg.engine)
     try:
         trainer = Trainer(cfg)
+
+        print("LOGGER TYPE:", type(trainer.logger), flush=True)
+        print("LOGGER:", trainer.logger, flush=True)
+
+        print("3. Logging hyperparameters...", flush=True)
         trainer.logger.log_hyperparams(parse_hyperparams(cfg))
+        print("4. Hyperparameters logged", flush=True)
         # ---- train
+        print("5. Starting trainer.fit()...", flush=True)
         trainer.fit(engine, train_dataloader, val_dataloader)
         # ---- finetune the encoder (eventually)
+        print("6. trainer.fit() FINISHED", flush=True)
         if cfg.dataset.loader.ftune_size > 0: 
             trainer, engine = finetune_model(cfg, engine, dataset)
         # ----- test

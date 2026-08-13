@@ -99,18 +99,18 @@ root_result_dir =   {
                         # 'asia_true': { 
                         #     'c2bm':        [f'outputs/multirun/2025-05-15/11-45-48_c2bm_bn/{i}' for i in [0,3,6,9,12]],
                         # },
-                        'toy_true': { 
-                            'c2bm':        [f'outputs/multirun/2026-08-11/rerun_toy/{i}' for i in [0,1,2,3,4]],
-                        },
+                        # 'toy_true': { 
+                        #     'c2bm':        [f'outputs/multirun/2026-08-11/rerun_toy/{i}' for i in [0,1,2,3,4]],
+                        # },
                         # 'sachs_true': { 
                         #     'c2bm':        [f'outputs/multirun/2025-05-15/11-45-48_c2bm_bn/{i}' for i in [1,4,7,10,13]],
                         # },
                         # 'insurance_true': { 
                         #     'c2bm':        [f'outputs/multirun/2025-05-15/11-45-48_c2bm_bn/{i}' for i in [2,5,8,11,14]],
                         # },
-                        # 'alarm_true': { 
-                        #     'c2bm':        [f'outputs/multirun/2025-05-15/11-46-04_c2bm_bn/{i}' for i in [0,2,4,6,8]]
-                        # },
+                        'alarm_true': { 
+                            'c2bm':        [f'outputs/multirun/2026-08-06/alarm_true_graph/{i}' for i in [0,1,2,3,4]]
+                        },
                         # 'hailfinder_true': { 
                         #     'c2bm':        [f'outputs/multirun/2025-05-15/11-46-04_c2bm_bn/{i}' for i in [1,3,5,7,9]]
                         # },

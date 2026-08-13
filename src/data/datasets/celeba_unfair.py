@@ -9,6 +9,8 @@ from typing import Union, List, Optional
 from src.data.datasets.celeba import CelebADataset, _CelebADataset
 from src.data.utils import split_dataset
 
+import pandas as pd
+
 
 
 class CelebAUnfairDataset(CelebADataset):
@@ -28,6 +30,34 @@ class CelebAUnfairDataset(CelebADataset):
                                                   task_cardinality,
                                                   to_keep)
         self.get_dataset = _CelebAUnfairDataset
+
+    # TODO FOR TMRW     
+
+    def load_ground_truth_graph(self):
+
+        # Use the actual names produced by the dataset
+        node_labels = self.c_info["names"] + self.y_info["names"]
+
+        adj = pd.DataFrame(
+            0,
+            index=node_labels,
+            columns=node_labels,
+            dtype=int
+        )
+
+        # Ground-truth edges from the fairness experiment
+        adj.loc["Pointy_Nose", "Heavy_Makeup"] = 1
+
+        adj.loc["Heavy_Makeup", "Qualified"] = 1
+        adj.loc["Wearing_Lipstick", "Qualified"] = 1
+        adj.loc["Attractive", "Qualified"] = 1
+
+        adj.loc["Qualified", "Should_be_Hired"] = 1
+        adj.loc["Pointy_Nose", "Should_be_Hired"] = 1
+
+        self.adj = adj
+
+        return self.adj
 
 
 class _CelebAUnfairDataset(_CelebADataset):

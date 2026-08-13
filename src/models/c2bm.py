@@ -4,7 +4,7 @@ from src.models.layers.base import Dense, MLP
 from src.models.layers.c_encoder import ConceptBlock
 from src.models.layers.intervention import maybe_intervene
 from src.utils import get_graph_levels, get_parents
-
+import pdb
 
 class C2BM(nn.Module):
     """
@@ -38,7 +38,7 @@ class C2BM(nn.Module):
         # define concepts info parameters
         self.c_names = c_info['names'] # used later to retrieve which are concepts 
         self.y_names = y_info['names'] # and which are targerts
-        self.virtual_roots = [name for name in c_info['names'] if name.startswith('#virtual_')]
+        self.virtual_roots = [name for name in c_info['names'] if name.startswith('#virtual_')]   #Look into 
         self.combo_info = {'names': c_info['names'] + y_info['names'],
                            'cardinality': c_info['cardinality'] + y_info['cardinality']}
         assert self.c_names + self.y_names == graph_labels
@@ -62,8 +62,10 @@ class C2BM(nn.Module):
 
         # get levels
         self.graph = torch.Tensor(graph).int()
+        # print("THE GRAPH IS", graph)
         task_index = self.combo_info['names'].index(self.y_names[0])
         graph_levels = get_graph_levels(self.graph, task_index)
+        # print("THE GRAPH LEVELS ARE: ", graph_levels)
         self.roots = graph_levels[0]
         self.roots_info = {'names': [name for i, name in enumerate(self.combo_info['names']) 
                                      if i in self.roots], 
@@ -116,6 +118,7 @@ class C2BM(nn.Module):
 
     def forward(self, x, c=None, intervention_index=None):
         # Encode input, get the latent features
+   
         x_encoded = self.encoder(x)
 
         c_embs, c_probs, c_values_emb = {}, {}, {}
@@ -138,6 +141,7 @@ class C2BM(nn.Module):
         # propagate the information through the causal graph
         # loop over le graph levels, starting from the level 1 after the roots
         for _, level in self.propagators.items():
+            # print(level.items())
             # update all nodes in the level
             for c_name, propagator in level.items():
                 c_index = self.combo_info['names'].index(c_name)
@@ -170,9 +174,15 @@ class C2BM(nn.Module):
                     p_cardinality = [self.combo_info['cardinality'][p] for p in p_indices]
                     # propagate embeddings
                     c_prop_parents = torch.cat([c_probs[p_name] for p_name in p_names], dim=1).unsqueeze(-1)
+                    # print(c_prop_parents.shape)
                     weights = propagator(c_values_emb[c_name])
+                    # print(weights.shape)
                     weights = weights.reshape(-1, c_cardinality, sum(p_cardinality))
+                    # print(weights.shape)
+                    # lLook into matrix mult
                     c_probs[c_name] = torch.softmax(torch.matmul(weights, c_prop_parents).squeeze(-1), dim=1)
+                    # print(c_probs[c_name])
+                    # print(c_probs[c_name].shape)
                     if c_name not in self.y_names:
                         c_probs[c_name] = maybe_intervene(c_probs[c_name], c[:,c_index], intervention_index[:,c_index])                   
                     # first = c_values_emb[c_name].reshape(-1, c_cardinality, self.concept_hidden_size)
@@ -191,6 +201,7 @@ class C2BM(nn.Module):
     
     def filter_output_for_metric(self, y_output, c_output):
         """Filter output for metric function"""
+        # pdb.set_trace()
         return y_output, c_output
 
     def loss(self, y_hat, y, c_hat_dict, c):
