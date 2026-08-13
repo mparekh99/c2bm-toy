@@ -127,31 +127,69 @@ class Predictor(pl.LightningModule):
                 metrics={k: self._check_metric(m) for k, m in nodes_per_level.items()},
                 prefix="test_intervention/level/c/")
 
-            # # interv test metrics
-            # How well can we predict y? 
-            self.laptop_interv_test_y = MetricCollection(
+            cace_task_concepts = [
+                'Wind_Present',
+                'Cup_Overfill',
+                'Grip_Stability',
+                'Spill_Risk',
+                'Path_Clear',
+                'Laptop_Nearby',
+                'Table_Clutter',
+                'Flat_Surface',
+                'Safe_Placement',
+            ]   
+
+            self.cace_single = MetricCollection(
                 metrics={
-                    '_baseline': self._check_metric(metrics.get('classification_acc')),
-                    '_after_Laptop_Nearby_set_1': self._check_metric(metrics.get('classification_acc')),
-                    '_after_Laptop_Nearby_set_0': self._check_metric(metrics.get('classification_acc')),
+                    f'{c}_to_Delivery_Feasibility':
+                        self._check_metric(metrics.get('cace'))
+                    for c in cace_task_concepts
                 },
-                prefix="laptop_interv_test/single/y/"
+                prefix='test_intervention/cace_single/'
             )
 
-            # self.wind_interv_test_y = MetricCollection(
-            #     metrics={
-            #         '_baseline': self._check_metric(metrics.get('cace')),
-            #         '_after_Wind_Present_set_1': self._check_metric(metrics.get('cace')),
-            #         '_after_Wind_Present_set_0': self._check_metric(metrics.get('cace')),
-            #     },
-            #     prefix="wind_interv_test/single/y/"
-            # )
+            cace_blocking_pairs = [
+                ('Cup_Overfill', 'Spill_Risk'),
+                ('Wind_Present', 'Spill_Risk'),
+                ('Grip_Stability', 'Spill_Risk'),
+                ('Laptop_Nearby', 'Safe_Placement'),
+                ('Table_Clutter', 'Safe_Placement'),
+                ('Flat_Surface', 'Safe_Placement'),
+            ]
 
-            # --- fairness metrics ---
+            cace_metrics = {}
+
+            for source, bottleneck in cace_blocking_pairs:
+                pair_name = f'{source}_to_{bottleneck}'
+
+                cace_metrics[f'{pair_name}/before'] = \
+                    self._check_metric(metrics.get('cace'))
+
+                cace_metrics[f'{pair_name}/after'] = \
+                    self._check_metric(metrics.get('cace'))
+
             self.cace = MetricCollection(
-                metrics = {'before': self._check_metric(metrics.get('cace')),
-                           'after': self._check_metric(metrics.get('cace'))},   
-                prefix="test_intervention/cace/")
+                metrics=cace_metrics,
+                prefix='test_intervention/cace/'
+            )
+
+            # # interv test metrics
+            # --- fairness metrics ---
+            # self.cace_test = MetricCollection(
+            #     metrics = {'before': self._check_metric(metrics.get('cace')),
+            #                'after': self._check_metric(metrics.get('cace'))},   
+            #     prefix="test_intervention/cace_test/")
+
+            self.cace_fairness = MetricCollection(
+                metrics={
+                    'before': self._check_metric(metrics.get('cace')),
+                    'after': self._check_metric(metrics.get('cace'))
+                },
+                prefix="test_intervention/cace_test/"
+            )
+
+
+
 
     def log_metrics(self, metrics, **kwargs):
         """"""
@@ -199,132 +237,6 @@ class Predictor(pl.LightningModule):
             intervention_index = torch.zeros(c_shape)
         return intervention_index.to("cuda" if torch.cuda.is_available() else "cpu")
 
-
-
-    def laptop_interv_test(self, batch):
-        if self.model.has_concepts:
-            x, c, y = self._unpack_batch(batch)
-            # maybe add noise
-            if self.test_interv_noise > 0:
-                x = x + torch.randn_like(x) * self.test_interv_noise
-
-            # baseline task accuracy
-            # do not intervene
-            intervention_index = get_test_intervention_index(c.shape, [])
-            inputs = {'x':x, 'c':c, 'intervention_index':intervention_index}
-            # forward pass with intervention at test time
-            y_output, c_output = self.forward(**inputs)
-            y_hat, c_hat = self.model.filter_output_for_metric(y_output, c_output)
-            # update metric after intervention:
-            # how well can we predict y?
-
-            self.laptop_interv_test_y['_baseline'].update(y_hat, y)  
-            # print("Baseline--> ")
-            # print(self.test_intervention_single_y['_baseline']) 
-
-            i = self.c_names.index('Laptop_Nearby') 
-
-            # Set it to false 
-            # overwrite C's Wind_Present concept values from GT 
-            c[:,i] = 1
-            # Set it to true
-            # c[:, i] = 1
-            # GT Replacement 
-            # intervention_index = get_test_intervention_index(c.shape, i)
-            interv_index, _ = get_test_intervention_index(c.shape, i, values=1)
-
-            inputs = {'x':x, 'c':c, 'intervention_index':interv_index}
-
-            y_output, c_output = self.forward(**inputs)
-
-            y_hat_set_1, _ = self.model.filter_output_for_metric(y_output, c_output)
-            self.laptop_interv_test_y['_after_Laptop_Nearby_set_1'].update(y_hat_set_1, y)
-        
-    
-            c[:,i] = 0
-            # Set it to true
-            # c[:, i] = 1
-            # GT Replacement 
-            # intervention_index = get_test_intervention_index(c.shape, i)
-            interv_index, _ = get_test_intervention_index(c.shape, i, values=0)
-
-            inputs = {'x':x, 'c':c, 'intervention_index':interv_index}
-
-            y_output, c_output = self.forward(**inputs)
-
-            y_hat_set_0, _ = self.model.filter_output_for_metric(y_output, c_output)
-
-            self.cace['effect'].update(y_hat_set_1, y_hat_set_0)
-            self.laptop_interv_test_y['_after_Laptop_Nearby_set_0'].update(y_hat_set_0, y)
-
-            self.log_metrics(
-                self.cace,
-                batch_size=batch['batch_size']
-            )
-            self.log_metrics(self.laptop_interv_test_y, batch_size=batch['batch_size'])
-    
-
-
-
-
-    def wind_interv_test(self, batch):
-        if self.model.has_concepts:
-            x, c, y = self._unpack_batch(batch)
-            # maybe add noise
-            if self.test_interv_noise > 0:
-                x = x + torch.randn_like(x) * self.test_interv_noise
-
-            # baseline task accuracy
-            # do not intervene
-            intervention_index = get_test_intervention_index(c.shape, [])
-            inputs = {'x':x, 'c':c, 'intervention_index':intervention_index}
-            # forward pass with intervention at test time
-            y_output, c_output = self.forward(**inputs)
-            y_hat, c_hat = self.model.filter_output_for_metric(y_output, c_output)
-            # update metric after intervention:
-            # how well can we predict y?
-            self.wind_interv_test_y['_baseline'].update(y_hat, y)  
-            # print("Baseline--> ")
-            # print(self.test_intervention_single_y['_baseline']) 
-
-            i = self.c_names.index('Wind_Present') 
-
-            # Set it to false 
-            # overwrite C's Wind_Present concept values from GT 
-            c[:,i] = 1
-            # Set it to true
-            # c[:, i] = 1
-            # GT Replacement 
-            # intervention_index = get_test_intervention_index(c.shape, i)
-            interv_index, _ = get_test_intervention_index(c.shape, i, values=1)
-
-            inputs = {'x':x, 'c':c, 'intervention_index':interv_index}
-
-            y_output, c_output = self.forward(**inputs)
-
-            y_hat, c_hat = self.model.filter_output_for_metric(y_output, c_output)
-
-            self.wind_interv_test_y['_after_Wind_Present_set_1'].update(y_hat, y)
-    
-            c[:,i] = 0
-            # Set it to true
-            # c[:, i] = 1
-            # GT Replacement 
-            # intervention_index = get_test_intervention_index(c.shape, i)
-            interv_index, _ = get_test_intervention_index(c.shape, i, values=0)
-
-            inputs = {'x':x, 'c':c, 'intervention_index':interv_index}
-
-            y_output, c_output = self.forward(**inputs)
-
-            y_hat, c_hat = self.model.filter_output_for_metric(y_output, c_output)
-
-            self.wind_interv_test_y['_after_Wind_Present_set_0'].update(y_hat, y)
-
-            self.log_metrics(
-                self.wind_interv_test_y,
-                batch_size=batch['batch_size']
-            )
     
     def test_intervention(self, batch):
         if self.model.has_concepts:
@@ -380,19 +292,71 @@ class Predictor(pl.LightningModule):
                         # this can happen if the model does not predict all concepts
                         pass
 
-    def test_intervention_fairness(self, batch):
+    def concept_to_concept_fairness(self, batch, c1, c2, interupt):
         if self.model.has_concepts:
             x, c, y = self._unpack_batch(batch)
 
-            for i in range(5):
-                print(f"Sample {i}: concepts = {c[i]}    y = {y[i]}")
+            i = self.c_names.index(c1)
+            j = self.c_names.index(c2)
+            k = self.c_names.index(interupt)
 
-            # get a concept pair i,j (node j has to be a bottleneck for node i to the task)
-            i = self.c_names.index('Laptop_Nearby')
-            j = self.c_names.index('Safe_Placement')
+            interv_index, interv_values = get_test_intervention_index(c.shape, i, values=1)
+            y_output, c_output = self.forward(**{'x':x, 'c':interv_values, 'intervention_index':interv_index})
+            _, c_hat_before_do_1 = self.model.filter_output_for_metric(y_output, c_output)
+            interv_index, interv_values = get_test_intervention_index(c.shape, i, values=0)
+            y_output, c_output = self.forward(**{'x':x, 'c':interv_values, 'intervention_index':interv_index})
+            _, c_hat_before_do_0 = self.model.filter_output_for_metric(y_output, c_output)
+            self.cace_fairness['before'].update(c_hat_before_do_1[self.c_names[k]], c_hat_before_do_0[self.c_names[k]])
 
-            # compute the cace before the do-intervention on concept j
-            # different do-interventions on concept i, effect on the task
+            interv_index, interv_values = get_test_intervention_index(c.shape, [j,i], values=[1,1])
+            y_output, c_output = self.forward(**{'x':x, 'c':interv_values, 'intervention_index':interv_index})
+            _, c_hat_after_do_1 = self.model.filter_output_for_metric(y_output, c_output)
+            interv_index, interv_values = get_test_intervention_index(c.shape, [j,i], values=[1,0])
+            y_output, c_output = self.forward(**{'x':x, 'c':interv_values, 'intervention_index':interv_index})
+
+            _, c_hat_after_do_0 = self.model.filter_output_for_metric(y_output, c_output)
+            self.cace_fairness['after'].update(c_hat_after_do_1[self.c_names[k]], c_hat_after_do_0[self.c_names[k]])  # # Node to compare against, replaces task node in this case
+            
+            # print(y_output, c_output)
+            self.log_metrics(self.cace_fairness, batch_size=batch['batch_size'])
+
+
+
+    def test_intervention_fairness(self, batch, c1, c2):
+        if self.model.has_concepts:
+            x, c, y = self._unpack_batch(batch)
+
+            i = self.c_names.index(c1)
+            j = self.c_names.index(c2)
+
+            interv_index, interv_values = get_test_intervention_index(c.shape, i, values=1)
+            y_output, c_output = self.forward(**{'x':x, 'c':interv_values, 'intervention_index':interv_index})
+            y_hat_before_do_1, _ = self.model.filter_output_for_metric(y_output, c_output)
+            interv_index, interv_values = get_test_intervention_index(c.shape, i, values=0)
+            y_output, c_output = self.forward(**{'x':x, 'c':interv_values, 'intervention_index':interv_index})
+            y_hat_before_do_0, _ = self.model.filter_output_for_metric(y_output, c_output)
+            self.cace_fairness['before'].update(y_hat_before_do_1, y_hat_before_do_0)
+
+            interv_index, interv_values = get_test_intervention_index(c.shape, [j,i], values=[1,1])
+            y_output, c_output = self.forward(**{'x':x, 'c':interv_values, 'intervention_index':interv_index})
+            y_hat_after_do_1, _ = self.model.filter_output_for_metric(y_output, c_output)
+            interv_index, interv_values = get_test_intervention_index(c.shape, [j,i], values=[1,0])
+            y_output, c_output = self.forward(**{'x':x, 'c':interv_values, 'intervention_index':interv_index})
+
+            y_hat_after_do_0, _ = self.model.filter_output_for_metric(y_output, c_output)
+            self.cace_fairness['after'].update(y_hat_after_do_1, y_hat_after_do_0)
+            
+            # print(y_output, c_output)
+            self.log_metrics(self.cace_fairness, batch_size=batch['batch_size'])
+
+
+    def cace_test(self, batch, c_1, c_2):
+
+        if self.model.has_concepts:
+            x, c, y = self._unpack_batch(batch)
+
+            i = self.c_names.index(c_1)
+
             interv_index, interv_values = get_test_intervention_index(c.shape, i, values=1)
             y_output, c_output = self.forward(**{'x':x, 'c':interv_values, 'intervention_index':interv_index})
             y_hat_before_do_1, _ = self.model.filter_output_for_metric(y_output, c_output)
@@ -400,33 +364,44 @@ class Predictor(pl.LightningModule):
             # assert y_output == y_hat_before_do_1
             y_output, c_output = self.forward(**{'x':x, 'c':interv_values, 'intervention_index':interv_index})
             y_hat_before_do_0, _ = self.model.filter_output_for_metric(y_output, c_output)
-            self.cace['before'].update(y_hat_before_do_1, y_hat_before_do_0)
+            # If arguement == task node
+            # Determining a node's presence and absence through a forward pass of c2bm and then 
+            # Compute the average effect on task node to be 1. 
+            if c_2 == 'Delivery_Feasibility':
+                # self.cace_single['cace_score'].update(y_hat_before_do_1, y_hat_before_do_0)
 
-            # on causal models like causal cem, because of the way they are implemented, is not necessary to strip eedges
-            # after interventions, as interventions fix the values of the concept and previous calculations are useless
-            # at most there is a little overhead in the forward pass
-            # if self.model.is_causal:
-            #     self.model.remove_edges(j)
+                metric_name = f'{c_1}_to_{c_2}'
 
-            # compute the cace after the do-intervention on concept j
-            # different do-interventions on concept i, effect on the task
+                self.cace_single[metric_name].update(
+                    y_hat_before_do_1,
+                    y_hat_before_do_0
+                )
+                self.log_metrics(self.cace_single, batch_size=batch['batch_size'])
+                return
+
+            # self.cace['before'].update(y_hat_before_do_1, y_hat_before_do_0)
+            pair_name = f'{c_1}_to_{c_2}'
+
+            self.cace[f'{pair_name}/before'].update(
+                y_hat_before_do_1,
+                y_hat_before_do_0
+            )
+
+            j = self.c_names.index(c_2)
+
             interv_index, interv_values = get_test_intervention_index(c.shape, [j,i], values=[1,1])
             y_output, c_output = self.forward(**{'x':x, 'c':interv_values, 'intervention_index':interv_index})
-            # print("After do_1 in fairness test")
-            # print(y_output, c_output)
-            # for i in range(5):
-            #     print(f"Sample {i}: concepts_do_1 = {c_output[i]}    y_do_1 = {y_output[i]}")
             y_hat_after_do_1, _ = self.model.filter_output_for_metric(y_output, c_output)
             interv_index, interv_values = get_test_intervention_index(c.shape, [j,i], values=[1,0])
             y_output, c_output = self.forward(**{'x':x, 'c':interv_values, 'intervention_index':interv_index})
 
-            # print("After do_0 in fairness test")
-            # for i in range(5):
-            #     print(f"Sample {i}: concepts_do_0 = {c_output[i]}    y_do_0 = {y_output[i]}")
             y_hat_after_do_0, _ = self.model.filter_output_for_metric(y_output, c_output)
-            self.cace['after'].update(y_hat_after_do_1, y_hat_after_do_0)
-            
-            # print(y_output, c_output)
+            # self.cace['after'].update(y_hat_after_do_1, y_hat_after_do_0)
+            self.cace[f'{pair_name}/after'].update(
+                y_hat_after_do_1,
+                y_hat_after_do_0
+            )
+         
             self.log_metrics(self.cace, batch_size=batch['batch_size'])
 
 
@@ -492,19 +467,27 @@ class Predictor(pl.LightningModule):
         self.update_and_log_metrics("test", y_hat, y, c_hat, c, batch)
         self.log_loss("test", test_loss, batch_size=batch['batch_size'])
         # test-time interventions
-        self.laptop_interv_test(batch)
-        # self.wind_interv_test(batch)
+        # self.test_intervention_fairness(batch, 'VENTLUNG', 'CATECHOL')
+        self.concept_to_concept_fairness(batch, 'KINKEDTUBE','VENTALV' , 'CATECHOL')
         # self.test_intervention(batch)
-        # if 'Qualified' in self.c_names:
-        #     self.test_intervention_fairness(batch)
+        # # Single cace
+        # self.cace_test(batch, 'Wind_Present', 'Delivery_Feasibility')
+        # self.cace_test(batch, 'Cup_Overfill', 'Delivery_Feasibility')
+        # self.cace_test(batch, 'Grip_Stability', 'Delivery_Feasibility')
+        # self.cace_test(batch, 'Spill_Risk', 'Delivery_Feasibility')
+        # self.cace_test(batch, 'Path_Clear', 'Delivery_Feasibility')
+        # self.cace_test(batch, 'Laptop_Nearby', 'Delivery_Feasibility')
+        # self.cace_test(batch, 'Table_Clutter', 'Delivery_Feasibility')
+        # self.cace_test(batch, 'Flat_Surface', 'Delivery_Feasibility')
+        # self.cace_test(batch, 'Safe_Placement', 'Delivery_Feasibility')
+        # # Block a node's effect on task node
+        # self.cace_test(batch, 'Cup_Overfill', 'Spill_Risk')
+        # self.cace_test(batch, 'Wind_Present', 'Spill_Risk')
+        # self.cace_test(batch, 'Grip_Stability', 'Spill_Risk')
+        # self.cace_test(batch, 'Laptop_Nearby', 'Safe_Placement')
+        # self.cace_test(batch, 'Table_Clutter', 'Safe_Placement')
+        # self.cace_test(batch, 'Flat_Surface', 'Safe_Placement')
 
-        # At test time I want to remove the influence of Wind_Presence in relation to Delivery Feasibility. 
-        # So we are going to do an intervention on Spill Risk 
-        # if 'Safe_Placement' in self.c_names:
-        #     self.test_intervention_fairness(batch)
-
-
-        # Next we will do an intervention on Safe Placement and remove the influecne of Laptop nearby
         return test_loss
 
     def on_test_epoch_end(self):
