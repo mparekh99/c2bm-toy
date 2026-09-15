@@ -1,0 +1,20 @@
+defaults:
+  - commons
+  - _self_
+
+name: robot_mug
+loader:
+    _target_: src.data.datasets.robot_mug.RobotMugDataset
+    test_size: 0.2
+    ftune_size: 0.0
+
+batch_size: 16  # small since you only have 50 episodes
+
+is_image_dataset: true
+reduce_fraction: Null
+
+load_embeddings: False
+load_graph: False
+load_true_graph: False
+
+label_descriptions: Null

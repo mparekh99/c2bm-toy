@@ -16,6 +16,19 @@ def static_graph_collate(batch):
         "graph": batch[0]["graph"],  # Add the graph once
     }
 
+# def reduce_dataset(_dataset, index_to_keep):
+#     dataset = deepcopy(_dataset)
+#     if dataset.X is not None:
+#         dataset.X = dataset.X[index_to_keep]
+#     if dataset.c is not None:
+#         dataset.c = dataset.c[index_to_keep]
+#     if dataset.y is not None:
+#         dataset.y = dataset.y[index_to_keep]
+#     if hasattr(dataset, 'df'):
+#         dataset.df = dataset.df.iloc[index_to_keep]
+#         dataset.df = dataset.df.reset_index(drop = True)
+#     return dataset
+
 def reduce_dataset(_dataset, index_to_keep):
     dataset = deepcopy(_dataset)
     if dataset.X is not None:
@@ -26,8 +39,11 @@ def reduce_dataset(_dataset, index_to_keep):
         dataset.y = dataset.y[index_to_keep]
     if hasattr(dataset, 'df'):
         dataset.df = dataset.df.iloc[index_to_keep]
-        dataset.df = dataset.df.reset_index(drop = True)
+        dataset.df = dataset.df.reset_index(drop=True)
+    if hasattr(dataset, 'rows'):  # ADD THIS
+        dataset.rows = [dataset.rows[i] for i in index_to_keep]
     return dataset
+
 
 def split_dataset(_dataset, split_size):
     len_dataset = len(_dataset)

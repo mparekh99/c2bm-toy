@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from sentence_transformers import SentenceTransformer
 from src.completion.llm.llm_client import llm_client
 from src.completion.context_generator import Context_generator
-from src.data.labelfree_preprocessing import encode_text, encode_image
+from src.data.labelfree_preprocessing import encode_text_clip as encode_text, encode_image_clip as encode_image
 
 
 

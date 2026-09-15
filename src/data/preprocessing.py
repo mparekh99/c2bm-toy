@@ -14,7 +14,7 @@ from src.models.layers.pretrained import InputImgEncoder
 from src.data.utils import reduce_dataset
 from src.data.datasets.colormnist import update_concept_names_ColorMNIST, onehot_to_concepts_ColorMNIST
 from src.data.autoencoder import AutoencoderTrainer, scale_embeddings
-from src.data.labelfree_preprocessing import load_pretrained_clip_model, generate_img_embeddings_and_assign_concepts
+from src.data.labelfree_preprocessing import generate_img_embeddings_and_assign_concepts
 from src.completion.concepts_retrieval import concepts_generation, filtering_concepts_from_llm
 from src.data.datasets.synthetic import get_synthetic_datasets, SyntheticDatasetContainer
 
@@ -206,6 +206,53 @@ def preprocess_dataset(cfg, _dataset, device, backbone) -> dict:
         dataset = SyntheticDatasetContainer(data=dataset,
                                    c_info=c_info,
                                    y_info=y_info,)
+    elif dataset_name == 'robot_mug':
+        from src.data.labelfree_preprocessing import load_robot_clip_model
+        clip_model, clip_processor = load_robot_clip_model(device)
+        dataset.split() 
+
+        concepts_path = os.path.join(CACHE, "robot_mug")
+        concepts_file = os.path.join(concepts_path, 'generated_concepts.json')
+
+        if not os.path.exists(concepts_file):
+            concepts = [
+                # mug orientation
+                "mug handle visible",
+                "mug upright",
+                "mug on its side",
+                
+                # gripper-mug relationship  
+                "gripper near mug",
+                "gripper open",
+                "gripper closed around object",
+                
+                # spatial position
+                "mug below dispenser",
+                "mug on counter surface",
+                "mug in air",
+                
+                # robot arm state
+                "robot arm extended",
+                "robot arm retracted",
+            ]
+            os.makedirs(concepts_path, exist_ok=True)
+            with open(concepts_file, 'w') as f:
+                json.dump({'concepts': concepts}, f)
+        else:
+            with open(concepts_file) as f:
+                concepts = json.load(f)['concepts']
+
+
+        dataset = generate_img_embeddings_and_assign_concepts(
+            dataset_name='robot_mug',
+            dataset=dataset,
+            concepts=concepts,
+            clip_model=clip_model,
+            clip_processor=clip_processor,
+            batch_size=256,
+            device=device
+        )
+        dataset.c_info['names'] = [c.replace(' ', '_') for c in dataset.c_info['names']]
     else:
         raise ValueError(f"Preprocessing is missing for dataset: {cfg.dataset.get('name')}")
     

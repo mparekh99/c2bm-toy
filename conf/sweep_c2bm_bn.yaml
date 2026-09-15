@@ -23,7 +23,7 @@ hydra:
       seed: 1 #[1,2,3,4,5]
     # additional list sweeper
     list_params:
-      dataset: toy
+      dataset: robot_mug
       model.hidden_size:      [64]    
       model.concept_loss_weight: [0.8]
       model.concept_hidden_size: [4]
@@ -34,7 +34,7 @@ policy: nodes_true # levels_true, levels_pred, nodes_true, nodes_pred, random
 dataset:
   load_embeddings: false
   load_graph: false
-  load_true_graph: true
+  load_true_graph: false
   batch_size: 512  # 128 (Pneumo, all SCBM), 512 (all others)
   autoencoder:
     noise: 0.5  # for bndatasets only

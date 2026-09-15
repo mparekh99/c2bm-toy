@@ -26,6 +26,7 @@ def get_dataset(cfg):
 
     destination_path = os.path.join(dataset_directory, f"preprocessed_dataset_{cfg.seed}.pkl")
     if cfg.dataset.get('load_embeddings') == False:
+        print("ENTERED!!!")
         dataset = instantiate(cfg.dataset.loader)
         dataset = preprocess_dataset(cfg, 
                                      dataset, 
@@ -36,6 +37,9 @@ def get_dataset(cfg):
     else:
         with open(destination_path, 'rb') as f: 
             dataset = pickle.load(f)
+
+
+    print("HERE NOW")
     true_graph = dataset.load_ground_truth_graph()
     maybe_plot_graph(true_graph, 'true_graph')
     return dataset, true_graph, dataset_directory

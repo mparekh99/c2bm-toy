@@ -7,7 +7,6 @@ from random import sample
 import seaborn as sns
 import plotly.express as px
 import matplotlib.pyplot as plt 
-from transformers import AutoTokenizer
 from torch.utils.data import DataLoader
 import torch.nn as nn
 from tqdm import tqdm
@@ -17,59 +16,32 @@ from sklearn.cluster import KMeans
 from typing import Dict, List, Union
 from scipy.stats import pearsonr
 
-# Add 'src' directory to sys.path
-from src.models.clip import CXRClip
+from transformers import CLIPModel, CLIPProcessor
 
-def load_pretrained_clip_model(model_name = "r50_mcc"):
-    # load pretrained clip model and configurations
-    ckpt = torch.load(f"{CACHE}/siim_pneumothorax/pretrained_models/{model_name}.tar", map_location="cpu")
-    ckpt_config = ckpt["config"]
-    ckpt_config_tokenizer = ckpt_config["tokenizer"]
-    pretrained_model_name_or_path = ckpt_config_tokenizer["pretrained_model_name_or_path"]
-    ckpt_config["cache_dir"] = CACHE
-    cache_dir = ckpt_config["cache_dir"]
+def load_robot_clip_model(device='cpu'):
+    model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+    processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+    model = model.to(device)
+    model.eval()
+    return model, processor
 
-    # initialize tokenizer for clip model
-    clip_tokenizer = AutoTokenizer.from_pretrained(
-                pretrained_model_name_or_path=pretrained_model_name_or_path,
-                cache_dir=cache_dir,
-                local_files_only=os.path.exists(os.path.join(cache_dir, f'models--{pretrained_model_name_or_path.replace("/", "--")}')))
-    
-    if clip_tokenizer.bos_token_id is None:
-            clip_tokenizer.bos_token_id = clip_tokenizer.cls_token_id
+def encode_image_clip(model, processor, images, device):
+    with torch.no_grad():
+        if isinstance(images, torch.Tensor):
+            pixel_values = images.to(device)
+            emb = model.get_image_features(pixel_values=pixel_values)
+        else:
+            inputs = processor(images=images, return_tensors="pt", padding=True).to(device)
+            emb = model.get_image_features(**inputs)
+        emb = emb / emb.norm(dim=-1, keepdim=True)
+    return emb.detach().cpu().numpy()
 
-    # initialize clip model
-    clip_model = CXRClip(ckpt_config["model"], 
-                    ckpt_config["loss"], 
-                    clip_tokenizer)
-
-
-    # load pretrained weights into the model
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    clip_model = clip_model.to(device)
-    clip_model.load_state_dict(ckpt["model"], strict=False)
-    clip_model.eval()
-
-    return clip_model, clip_tokenizer, ckpt_config
-
-def encode_image(clip_model, image: torch.Tensor, device: str = "cpu"):
-        with torch.no_grad():
-            img_emb = clip_model.encode_image(image.to(device))
-            img_emb = clip_model.image_projection(img_emb) if clip_model.projection else img_emb
-            img_emb = img_emb / torch.norm(img_emb, dim=1, keepdim=True)
-        return img_emb.detach().cpu().numpy()
-
-def encode_text(clip_model, clip_tokenizer, ckpt_config, text_token: Union[str, List[str], Dict, torch.Tensor], device: str = "cpu"):
-        if isinstance(text_token, str) or isinstance(text_token, list):
-            text_token = clip_tokenizer(
-                text_token, padding="longest", truncation=True, return_tensors="pt", max_length=ckpt_config["base"]["text_max_length"]
-            )
-
-        with torch.no_grad():
-            text_emb = clip_model.encode_text(text_token.to(device))
-            text_emb = clip_model.text_projection(text_emb) if clip_model.projection else text_emb
-            text_emb = text_emb / torch.norm(text_emb, dim=1, keepdim=True)
-        return text_emb.detach().cpu().numpy()
+def encode_text_clip(model, processor, texts, device):
+    with torch.no_grad():
+        inputs = processor(text=texts, return_tensors="pt", padding=True, truncation=True).to(device)
+        emb = model.get_text_features(**inputs)
+        emb = emb / emb.norm(dim=-1, keepdim=True)
+    return emb.detach().cpu().numpy()
 
 def transform_concepts_to_binary(c_embeddings):
 
@@ -101,24 +73,9 @@ def transform_concepts_to_binary(c_embeddings):
 
     return c
  
-def _generate_img_embeddings_and_assign_concepts(dataset, 
-                                                 concepts, 
-                                                 clip_model, 
-                                                 clip_tokenizer, 
-                                                 ckpt_config, 
-                                                 input_encoder,
-                                                 batch_size,
-                                                 device):
-    """
-    Assign c values to dataset siim_pneumothorax based on the similarity between the images and a list concepts.
-    Args:
-        dataset: pneumothorax dataset object containing images.
-        clip_model: generates embeddings for both images and concepts. 
-                    These embeddings are then used to calculate similarities, which are subsequently used to determine the c values.
-        clip_tokenizer: clip tokenizer object.
-        ckpt_config: checkpoint configuration for clip model.
-        input_encoder: input encoder model used to encode images for the complete pipeline
-    """ 
+def _generate_img_embeddings_and_assign_concepts(dataset, concepts, clip_model,
+                                                  clip_processor,
+                                                  input_encoder, batch_size, device):
 
     # create dataloader
     dataloader = DataLoader(dataset, 
@@ -131,14 +88,14 @@ def _generate_img_embeddings_and_assign_concepts(dataset,
                             drop_last = False)
 
     # encode concepts with clip model
-    concepts_embeddings = encode_text(clip_model, clip_tokenizer, ckpt_config, concepts, device)
+    concepts_embeddings = encode_text_clip(clip_model, clip_processor, concepts, device)
 
     images_resnet_embeddings = []
     images_c_similarities = []
     y = []
     for batch in tqdm(dataloader):
         # encode images to calculate similarity with concepts
-        img_emb = encode_image(clip_model, batch["x"], device)
+        img_emb = encode_image_clip(clip_model, clip_processor, batch["x"], device)
 
         # encode images for the pipeline
         img_resnet_emb = input_encoder(batch["x"].to(device)).squeeze().detach().cpu().numpy()
@@ -229,31 +186,21 @@ def concepts_analysis(c, y, concepts, images_c_similarities):
 
     return None
 
-def generate_img_embeddings_and_assign_concepts(dataset_name: str,
-                                                dataset: torch.utils.data.Dataset,
-                                                concepts: List[str],
-                                                clip_model: CXRClip,
-                                                clip_tokenizer: AutoTokenizer,
-                                                ckpt_config: Dict,
-                                                batch_size: int = 128,
-                                                device: str = 'cpu') -> None:
-    
-    # input encoder model to preprocess images for the pipeline
-    input_encoder = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
+def generate_img_embeddings_and_assign_concepts(dataset_name, dataset, concepts,
+                                                clip_model: CLIPModel,
+                                                clip_processor: CLIPProcessor,
+                                                batch_size=128, device='cpu'):
+    from torchvision.models import resnet18, ResNet18_Weights
+    input_encoder = resnet18(weights=ResNet18_Weights.DEFAULT)
     modules = list(input_encoder.children())[:-1]
     input_encoder = nn.Sequential(*modules)
     input_encoder.to(device)
     input_encoder.eval()
 
     for split, data in dataset.data.items():
-        data = _generate_img_embeddings_and_assign_concepts(data, 
-                                                            concepts, 
-                                                            clip_model, 
-                                                            clip_tokenizer, 
-                                                            ckpt_config, 
-                                                            input_encoder,
-                                                            batch_size,
-                                                            device)
+        data = _generate_img_embeddings_and_assign_concepts(data, concepts, clip_model,
+                                                        clip_processor,
+                                                        input_encoder, batch_size, device)
         dataset.data[split] = data
 
     # update c_info

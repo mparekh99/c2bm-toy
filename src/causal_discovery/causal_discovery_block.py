@@ -21,15 +21,41 @@ from causallearn.utils.cit import chisq
 from src.plots import maybe_plot_graph
 
 def process_data_for_causal_discovery(data, label_names, causal_discovery_library):
+    print("Entered here")
     if causal_discovery_library=="causallearn":
-        if not isinstance(data.c, torch.Tensor):
-            data.c = torch.tensor(data.c, dtype=torch.long)
-            data.y = torch.tensor(data.c, dtype=torch.long)
-        processed_data = torch.cat((data.c, data.y), dim=1)
+        print("CRASH??")
+
+        try:
+            print("data.c type:", type(data.c))
+            print("data.c shape:", data.c.shape)
+            print("data.y type:", type(data.y))
+            print("data.y shape:", data.y.shape)
+            
+            if not isinstance(data.c, torch.Tensor):
+                data.c = torch.tensor(data.c, dtype=torch.long)
+                data.y = torch.tensor(data.y, dtype=torch.long)  # NOTE: fixed bug, was copying c into y
+            
+            processed_data = torch.cat((data.c, data.y), dim=1)
+            print("cat succeeded, shape:", processed_data.shape)
+
+        except Exception as e:
+            print("EXCEPTION:", e)
+            import traceback
+            traceback.print_exc()
+            raise
+
+
+        # if not isinstance(data.c, torch.Tensor):
+        #     data.c = torch.tensor(data.c, dtype=torch.long)
+        #     data.y = torch.tensor(data.c, dtype=torch.long)
+        # processed_data = torch.cat((data.c, data.y), dim=1)
+
+        print("using causallearn library")
 
     #elif model_name == "pc":
     #    data = torch.cat((data.c, data.y), dim=1).numpy()
     elif causal_discovery_library=="pytetrad":
+        print("Hello")
         processed_data = pd.DataFrame(torch.cat((data.c, data.y), dim=1).numpy())
         processed_data = processed_data.astype(int)
         processed_data.columns = label_names
@@ -39,12 +65,12 @@ def process_data_for_causal_discovery(data, label_names, causal_discovery_librar
     return processed_data
 
 
-
 def apply_causal_discovery(data,
                            causal_discovery_model,
                            causal_discovery_type,
                            causal_discovery_library,
                            **kwargs):
+    print("HELLO")
     model_info = dict()
     if causal_discovery_library=="causallearn":
         algo_function = globals().get(causal_discovery_model)
@@ -159,13 +185,13 @@ def causal_discovery(cfg, dataset, true_graph=None):
             data_for_causal_discovery = process_data_for_causal_discovery(dataset.data['train'], 
                                                                         dataset.c_info['names'] +  dataset.y_info['names'],
                                                                         cfg.causal_discovery.get('causal_discovery_library'))
-
+            print("exitted preprocess")
             raw_predicted_graph, model_info = apply_causal_discovery(data_for_causal_discovery,
                                                                     cfg.causal_discovery.get('name'),
                                                                     cfg.causal_discovery.get('type'),
                                                                     cfg.causal_discovery.get('causal_discovery_library'),
                                                                     **cfg.causal_discovery.get('kwargs', {}))
-            
+            print("FINISEHD APPLY CAUSAL DISCOVRY")    
             predicted_graph = postprocess_graph(raw_predicted_graph,
                                                 dataset.c_info['names'] + dataset.y_info['names'],
                                                 cfg.causal_discovery.get('name'),
