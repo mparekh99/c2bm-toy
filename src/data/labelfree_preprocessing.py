@@ -72,55 +72,76 @@ def transform_concepts_to_binary(c_embeddings):
     c = torch.tensor(cluster_assignments)
 
     return c
- 
-def _generate_img_embeddings_and_assign_concepts(dataset, concepts, clip_model,
-                                                  clip_processor,
-                                                  input_encoder, batch_size, device):
 
-    # create dataloader
-    dataloader = DataLoader(dataset, 
-                            #batch_size=cfg.dataset.batch_size, 
-                            batch_size = batch_size,
-                            collate_fn=getattr(dataset, "collate_fn", None), 
-                            num_workers = 16,
-                            pin_memory = True,
-                            shuffle = False,
-                            drop_last = False)
-
-    # encode concepts with clip model
+def _generate_img_embeddings_and_assign_concepts_maxpool(dataset,
+                                                          concepts,
+                                                          clip_model,
+                                                          clip_processor,
+                                                          input_encoder,
+                                                          batch_size,
+                                                          device):
+    # encode concepts once
     concepts_embeddings = encode_text_clip(clip_model, clip_processor, concepts, device)
 
     images_resnet_embeddings = []
     images_c_similarities = []
     y = []
-    for batch in tqdm(dataloader):
-        # encode images to calculate similarity with concepts
-        img_emb = encode_image_clip(clip_model, clip_processor, batch["x"], device)
 
-        # encode images for the pipeline
-        img_resnet_emb = input_encoder(batch["x"].to(device)).squeeze().detach().cpu().numpy()
+    # process one episode at a time
+    for idx in tqdm(range(len(dataset))):
+        row = dataset.rows[idx]
+        
+        # load all frames for this episode
+        frames = []
+        for frame_path in row['frames']:
+            image = Image.open(frame_path).convert("RGB")
+            image = dataset.transform(image)
+            frames.append(image)
+        
+        # process in mini-batches to avoid OOM
+        frame_tensor = torch.stack(frames, dim=0)  # [num_frames, C, H, W]
+        
+        all_clip_embs = []
+        all_resnet_embs = []
+        
+        for i in range(0, len(frames), batch_size):
+            batch = frame_tensor[i:i+batch_size].to(device)
+            
+            # CLIP embeddings
+            clip_emb = encode_image_clip(clip_model, clip_processor, batch, device)
+            all_clip_embs.append(clip_emb)
+            
+            # ResNet embeddings
+            with torch.no_grad():
+                resnet_emb = input_encoder(batch).squeeze().detach().cpu().numpy()
+                if resnet_emb.ndim == 1:
+                    resnet_emb = resnet_emb.reshape(1, -1)
+            all_resnet_embs.append(resnet_emb)
+        
+        # concatenate all frame embeddings
+        all_clip_embs = np.concatenate(all_clip_embs, axis=0)  # [num_frames, clip_dim]
+        all_resnet_embs = np.concatenate(all_resnet_embs, axis=0)  # [num_frames, resnet_dim]
+        
+        # compute similarity per frame
+        frame_similarities = metrics.pairwise.cosine_similarity(
+            all_clip_embs, concepts_embeddings
+        )  # [num_frames, num_concepts]
+        
+        # max pool across frames
+        episode_similarity = frame_similarities.max(axis=0)  # [num_concepts]
+        
+        # mean pool resnet embeddings for X
+        episode_resnet = all_resnet_embs.mean(axis=0)  # [resnet_dim]
+        
+        images_c_similarities.append(episode_similarity)
+        images_resnet_embeddings.append(episode_resnet)
+        y.append(np.float32(row['label']))
 
-        # calculate similarity between images and concepts
-        img_c_similarities = metrics.pairwise.cosine_similarity(img_emb, concepts_embeddings)
-
-        if len(batch["y"])==1:
-            y.append(np.float32(batch["y"].item()))
-            images_resnet_embeddings.extend(img_resnet_emb.reshape(1,-1))
-            images_c_similarities.extend(img_c_similarities.reshape(1,-1))
-        else:
-            y.extend(batch["y"].squeeze().detach().cpu().numpy())
-            images_resnet_embeddings.extend(img_resnet_emb)
-            images_c_similarities.extend(img_c_similarities)
-
-    
-    # transform concepts into binary values through clustering
+    # binarize concept scores
     c = transform_concepts_to_binary(torch.tensor(np.array(images_c_similarities)))
     dataset.c = c
     dataset.y = torch.tensor(y).unsqueeze(1)
-    images_resnet_embeddings = torch.tensor(np.array(images_resnet_embeddings))
-
-    # assign image embeddings to dataset
-    dataset.X = images_resnet_embeddings
+    dataset.X = torch.tensor(np.array(images_resnet_embeddings))
     return dataset
 
 def concepts_analysis(c, y, concepts, images_c_similarities):
@@ -198,12 +219,12 @@ def generate_img_embeddings_and_assign_concepts(dataset_name, dataset, concepts,
     input_encoder.eval()
 
     for split, data in dataset.data.items():
-        data = _generate_img_embeddings_and_assign_concepts(data, concepts, clip_model,
-                                                        clip_processor,
-                                                        input_encoder, batch_size, device)
+        print(f"Processing split: {split}", flush=True)
+        data = _generate_img_embeddings_and_assign_concepts_maxpool(
+            data, concepts, clip_model, clip_processor,
+            input_encoder, batch_size, device
+        )
         dataset.data[split] = data
 
-    # update c_info
-    dataset.c_info = {'names': concepts, 
-                      'cardinality': [2]* len(concepts)}
+    dataset.c_info = {'names': concepts, 'cardinality': [2] * len(concepts)}
     return dataset

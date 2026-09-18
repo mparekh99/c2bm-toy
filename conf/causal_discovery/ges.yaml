@@ -4,4 +4,5 @@ causal_discovery_library: causallearn
 output: CPDAG
 
 kwargs:
-  score_func: local_score_BDeu
+  # score_func: local_score_BDeu
+  score_func: local_score_BIC

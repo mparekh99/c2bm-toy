@@ -1,107 +1,113 @@
-from env import CACHE, ROBOT_MUG_PATH
-from pathlib import Path
-import os
-import torch
+import pandas as pd
 import numpy as np
-from PIL import Image
-from torch.utils.data.dataset import Dataset
-from torchvision import transforms
-from src.data.utils import split_dataset
-from typing import Dict, List
-
-class RobotMugDataset(Dataset):
-    def __init__(self,
-                 test_size: float = 0.2,
-                 ftune_size: float = 0.0,
-                 ftune_val_size: float = 0.0):
-        
-        self.test_size = test_size
-        self.ftune_size = ftune_size
-        self.ftune_val_size = ftune_val_size
-
-        self.c_info = {'names': None, 'cardinality': None}
-        self.y_info = {'names': ['success'], 'cardinality': [2]}
-        self.data = {}
-
-    def load_ground_truth_graph(self):
-        return None
-
-    def split(self, ckpt_config=None):
-        data_root = ROBOT_MUG_PATH
-
-        episodes = {}
-        for folder in sorted(os.listdir(data_root)):
-            parts = folder.split('_')  # ['rollout', '0000', 'failure', 'left']
-            if len(parts) != 4 or parts[0] != 'rollout':
-                continue
-            ep_num = parts[1]
-            label = 0 if parts[2] == 'failure' else 1
-
-            if ep_num not in episodes:
-                episodes[ep_num] = {'label': label, 'frames': []}
-
-            folder_path = os.path.join(data_root, folder)
-            for frame in sorted(Path(folder_path).glob("*.jpg")):
-                episodes[ep_num]['frames'].append(str(frame))
-
-        rows = [
-            {'episode': ep_num,
-            'frames': info['frames'],
-            'label': info['label']}
-            for ep_num, info in sorted(episodes.items())
-        ]
-
-        print(f"Loaded {len(rows)} episodes")
-        print(f"Success: {sum(r['label'] for r in rows)}, Failure: {sum(1-r['label'] for r in rows)}")
-
-        full_dataset = _RobotMugDataset(rows)
-        self.data['train'], data_val_test = split_dataset(full_dataset, 0.3)
-        self.data['val'], data_test = split_dataset(data_val_test, self.test_size)
-        self.data['val'].split_type = 'val'
-        self.data['test'] = data_test
-        self.data['test'].split_type = 'test'
+import torch
+from sklearn.model_selection import train_test_split
 
 
-class _RobotMugDataset(Dataset):
-    def __init__(self, rows: List[Dict], transform_config=None):
-        super().__init__()
-        self.rows = rows
-        self.X = None
-        self.c = None
-        self.y = None
-        self.graph = {}
-        self.split_type = 'train'
-
-        self.transform = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.5]*3, std=[0.5]*3)
-        ])
-
-    def __len__(self):
-        return len(self.rows)
+class SplitData(torch.utils.data.Dataset):
+    def __init__(self, X, y):
+        self.c          = torch.tensor(X, dtype=torch.float32)
+        self.y          = torch.tensor(y, dtype=torch.long).unsqueeze(1)
+        self.X          = self.c
+        self.complete_c = self.c
+        self.graph      = []
+        self.split_type = ""
 
     def register_graph(self, graph):
         self.graph = graph
 
-    def __getitem__(self, index):
-        if self.X is None:
-            row = self.rows[index]
-            frame_path = row['frames'][len(row['frames']) // 2]  # middle frame
-            image = Image.open(frame_path).convert("RGB")
-            image = self.transform(image)
-            label = torch.Tensor([row['label']])
-            c = torch.zeros_like(label)
-        else:
-            image = self.X[index]
-            c = self.c[index]
-            label = self.y[index]
+    def __len__(self):
+        return len(self.c)
 
-        return {"x": image, "c": c, "y": label, "graph": self.graph}
+    def __getitem__(self, idx):
+        return {
+            'x':          self.X[idx],
+            'c':          self.c[idx],
+            'complete_c': self.complete_c[idx],
+            'y':          self.y[idx],
+            'graph':      self.graph,
+        }
 
-    def collate_fn(self, instances: List):
-        images = torch.stack([ins["x"] for ins in instances])
-        c = torch.stack([ins["c"] for ins in instances])
-        labels = torch.stack([ins["y"] for ins in instances])
-        graph = instances[0]["graph"]
-        return {"x": images, "c": c, "y": labels, "graph": graph}
+
+class RobotDataset:
+    def __init__(self, dag_name, task_name, csv_path,
+                 val_size=0.1, test_size=0.2,
+                 ftune_size=0., ftune_val_size=0., **kwargs):
+        self.dag_name  = dag_name
+        self.task_name = task_name
+
+        df = pd.read_csv(csv_path)
+        df = df.dropna(subset=[task_name])
+
+        drop_cols = ["episode_idx"]
+
+        # only drop success if it's not the task_name
+        if task_name != "success":
+            drop_cols.append("success")
+
+        concept_cols = [c for c in df.columns if c not in drop_cols]
+
+
+        # ── filter to keep_concepts if specified ──────────────────────────────────────
+        if kwargs.get("keep_concepts"):
+            keep = set(kwargs["keep_concepts"])
+            concept_cols = [c for c in concept_cols if c in keep or c == task_name]
+            print(f"Filtered to {len(concept_cols)} concepts: {concept_cols}")
+
+        for col in concept_cols:
+            df[col] = df[col].map(
+                lambda x: 1 if str(x).strip().lower() in ("1", "true", "yes") else 0
+            )
+
+        self.feature_names = [c for c in concept_cols if c != task_name]
+        X = df[self.feature_names].values.astype(float)
+        y = df[task_name].values.astype(float)
+
+        try:
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=test_size, random_state=42, stratify=y)
+            X_train, X_val, y_train, y_val = train_test_split(
+                X_train, y_train,
+                test_size=val_size / (1.0 - test_size),
+                random_state=42, stratify=y_train)
+        except ValueError:
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=test_size, random_state=42)
+            X_train, X_val, y_train, y_val = train_test_split(
+                X_train, y_train,
+                test_size=val_size / (1.0 - test_size),
+                random_state=42)
+
+        self.X_train, self.y_train = X_train, y_train
+        self.X_val,   self.y_val   = X_val,   y_val
+        self.X_test,  self.y_test  = X_test,  y_test
+
+        self.data = {
+            'train': SplitData(X_train, y_train),
+            'val':   SplitData(X_val,   y_val),
+            'test':  SplitData(X_test,  y_test),
+        }
+        self.data['train'].split_type = 'train'
+        self.data['val'].split_type   = 'val'
+        self.data['test'].split_type  = 'test'
+
+        self.c_info = {
+            'names':       self.feature_names,
+            'cardinality': [2] * len(self.feature_names),
+        }
+        self.c_info_complete = self.c_info
+        self.y_info = {
+            'names':       [task_name],
+            'cardinality': [2],
+        }
+
+        print(f"Dataset: {len(X_train)} train, {len(X_val)} val, {len(X_test)} test")
+        print(f"Concepts ({len(self.feature_names)}): {self.feature_names}")
+        print(f"Task: {self.y_info['names']}")
+        print(f"Success rate: {y.mean():.2f} ({int(y.sum())} success, {int((1-y).sum())} failure)")
+
+    def load_ground_truth_graph(self):
+        return None
+
+    def get_concept_names(self):
+        return self.feature_names

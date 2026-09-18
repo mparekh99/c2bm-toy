@@ -198,7 +198,10 @@ def causal_discovery(cfg, dataset, true_graph=None):
                                                 cfg.causal_discovery.get('type'),
                                                 cfg.causal_discovery.get('causal_discovery_library'))
 
-            maybe_plot_graph(predicted_graph, 'predicted_graph')
+            try:
+                maybe_plot_graph(predicted_graph, 'predicted_graph')
+            except Exception as e:
+                print("maybe_plot_graph failed (non-fatal):", e)
             print('done')
         return predicted_graph
     else:

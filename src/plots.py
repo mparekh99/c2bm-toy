@@ -268,7 +268,7 @@ def maybe_plot_graph(graph, plot_name):
         None
     """
     if graph is not None:
-        g = torch.Tensor(graph.values)
+        g = torch.Tensor(graph.values.copy())
         labels = list(graph.index)
         g, edges_g = convert_adjMatrix_to_causallearnGraph(g, labels)
         # Convert graph to PyDot format

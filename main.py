@@ -69,15 +69,13 @@ def main(cfg: DictConfig) -> None:
 
     # instantiate the dataset, split into train, val, test
     # preprocess all of them and save the preprocessed dataset
-    dataset, true_graph, dataset_directory = get_dataset(cfg)
-    print("COMPLETED!!!")
-    # 
-
-    print("=== after get_dataset ===", flush=True)
-    print("load_true_graph:", cfg.dataset.load_true_graph, flush=True)
-    print("load_graph:", cfg.dataset.load_graph, flush=True)
-    print("causal_discovery:", cfg.causal_discovery, flush=True)
-    print("dataset_directory:", dataset_directory, flush=True)
+    try:
+        dataset, true_graph, dataset_directory = get_dataset(cfg)
+        print("COMPLETED!!!")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise
 
     # get the causal graph
     if cfg.dataset.load_true_graph:
@@ -92,32 +90,29 @@ def main(cfg: DictConfig) -> None:
                 print("Mihir")
         else:
             print("starting causal discovery...")
-            # estimate causal graph with causal structural learning algorithms
             predicted_graph = causal_discovery(cfg, dataset, true_graph)
-            print("finished causal discovery")
-            if true_graph is not None:
-                hamming = hamming_distance(true_graph, predicted_graph)
-                print('(after CD) structural hamming distance: ', hamming)    
 
-            print("finished causal discovery")
-            print("type:", type(predicted_graph))  # ← add this
-            print("value:", predicted_graph)        # ← add this
+            print("\n── CPDAG ──")
+            print(predicted_graph)
 
-            # # complete the causal graph with LLM and RAG
-            # completed_graph = complete_graph_with_llm(cfg, predicted_graph, cfg.dataset.name)
-            
-            # if true_graph is not None:
-            #     hamming = hamming_distance(true_graph, completed_graph)
-            #     print('(after LLM + RAG) structural hamming distance: ', hamming)
-            # graph = completed_graph
-            graph = predicted_graph  
-            # save graph
+            print("\n── Directed edges (i → j) ──")
+            for i in predicted_graph.index:
+                for j in predicted_graph.columns:
+                    if predicted_graph.loc[i,j] == 1 and predicted_graph.loc[j,i] == 0:
+                        print(f"  {i}  →  {j}")
+
+            print("\n── Undirected edges (i — j) ──")
+            seen = set()
+            for i in predicted_graph.index:
+                for j in predicted_graph.columns:
+                    if predicted_graph.loc[i,j] == 1 and predicted_graph.loc[j,i] == 1 and (j,i) not in seen:
+                        print(f"  {i}  —  {j}")
+                        seen.add((i,j))
+
+            graph = predicted_graph
             with open(os.path.join(dataset_directory, "graph.pkl"), 'wb') as f:
                 pickle.dump(graph, f)
             print("saved graph!!!")
-
-    print("Finished")
-    return 
 
     # fix the graph
     # (part 1): remove bidirected and undirected edges + add virtual nodes
@@ -125,69 +120,69 @@ def main(cfg: DictConfig) -> None:
     # case the CD + LLM + RAG pipeline is modified and could produce bidirected or undirected edges
     # graph, dataset = remove_problematic_edges(graph, dataset)
 
-    # y_index = list(graph.index).index(dataset.y_info['names'][0]); assert y_index == len(graph) - 1
+    y_index = list(graph.index).index(dataset.y_info['names'][0]); assert y_index == len(graph) - 1
 
-    # # (part 2): remove cycles
-    # graph = remove_cycles(graph, y_index)
+    # (part 2): remove cycles
+    graph = remove_cycles(graph, y_index)
 
     # if true_graph is not None:
     #     hamming = hamming_distance(true_graph, graph)
     #     print('(after fix) structural hamming distance: ', hamming)
-    # maybe_plot_graph(graph, 'fixed_graph')
+    maybe_plot_graph(graph, 'fixed_graph')
 
     # # use the graph to define an intervention policy at test time
-    # interv_policy, ip_names = get_intervention_policy(cfg.policy, graph, true_graph, y_index)
-    # print('intervention policy:', interv_policy)
-    # print('intervention policy names:', ip_names)
+    interv_policy, ip_names = get_intervention_policy(cfg.policy, graph, true_graph, y_index)
+    print('intervention policy:', interv_policy)
+    print('intervention policy names:', ip_names)
 
 
 
     # # update config based on the dataset
     # # e.g., set input and output size of the model
-    # cfg = update_config_from_data(cfg, dataset)
-    # cfg = maybe_update_config_with_graph(cfg, graph, interv_policy)
+    cfg = update_config_from_data(cfg, dataset)
+    cfg = maybe_update_config_with_graph(cfg, graph, interv_policy)
 
-    
     
     # ############ model block ########################################################################################
-    # [dataset.data[split].register_graph(graph) for split in dataset.data]
-    # train_dataloader = DataLoader(dataset.data['train'], 
-    #                               batch_size=cfg.dataset.batch_size, 
-    #                               collate_fn=static_graph_collate,
-    #                               num_workers=cfg.dataset.num_workers)
-    # val_dataloader = DataLoader(dataset.data['val'], 
-    #                             batch_size=cfg.dataset.batch_size, 
-    #                             collate_fn=static_graph_collate,
-    #                             num_workers=cfg.dataset.num_workers)
-    # test_dataloader = DataLoader(dataset.data['test'], 
-    #                              batch_size=cfg.dataset.batch_size, 
-    #                              collate_fn=static_graph_collate,
-    #                              num_workers=cfg.dataset.num_workers)
+    [dataset.data[split].register_graph(graph) for split in dataset.data]
+    train_dataloader = DataLoader(dataset.data['train'], 
+                                  batch_size=cfg.dataset.batch_size, 
+                                  collate_fn=static_graph_collate,
+                                  num_workers=cfg.dataset.num_workers)
+    val_dataloader = DataLoader(dataset.data['val'], 
+                                batch_size=cfg.dataset.batch_size, 
+                                collate_fn=static_graph_collate,
+                                num_workers=cfg.dataset.num_workers)
+    test_dataloader = DataLoader(dataset.data['test'], 
+                                 batch_size=cfg.dataset.batch_size, 
+                                 collate_fn=static_graph_collate,
+                                 num_workers=cfg.dataset.num_workers)
 
-    # print(cfg.engine)
-    # engine = instantiate(cfg.engine)
-    # try:
-    #     trainer = Trainer(cfg)
+    print(cfg.engine)
 
-    #     print("LOGGER TYPE:", type(trainer.logger), flush=True)
-    #     print("LOGGER:", trainer.logger, flush=True)
+    engine = instantiate(cfg.engine)
+    try:
+        trainer = Trainer(cfg)
 
-    #     print("3. Logging hyperparameters...", flush=True)
-    #     trainer.logger.log_hyperparams(parse_hyperparams(cfg))
-    #     print("4. Hyperparameters logged", flush=True)
-    #     # ---- train
-    #     print("5. Starting trainer.fit()...", flush=True)
-    #     trainer.fit(engine, train_dataloader, val_dataloader)
-    #     # ---- finetune the encoder (eventually)
-    #     print("6. trainer.fit() FINISHED", flush=True)
-    #     if cfg.dataset.loader.ftune_size > 0: 
-    #         trainer, engine = finetune_model(cfg, engine, dataset)
-    #     # ----- test
-    #     trainer.test(engine, test_dataloader, ckpt_path='best')
-    #     trainer.logger.finalize("success")
-    # finally:
-    #     if isinstance(trainer.logger, WandbLogger):
-    #         trainer.logger.experiment.finish()
+        print("LOGGER TYPE:", type(trainer.logger), flush=True)
+        print("LOGGER:", trainer.logger, flush=True)
+
+        print("3. Logging hyperparameters...", flush=True)
+        trainer.logger.log_hyperparams(parse_hyperparams(cfg))
+        print("4. Hyperparameters logged", flush=True)
+        # ---- train
+        print("5. Starting trainer.fit()...", flush=True)
+        trainer.fit(engine, train_dataloader, val_dataloader)
+        # ---- finetune the encoder (eventually)
+        print("6. trainer.fit() FINISHED", flush=True)
+        if cfg.dataset.loader.ftune_size > 0: 
+            trainer, engine = finetune_model(cfg, engine, dataset)
+        # ----- test
+        trainer.test(engine, test_dataloader, ckpt_path='best')
+        trainer.logger.finalize("success")
+    finally:
+        if isinstance(trainer.logger, WandbLogger):
+            trainer.logger.experiment.finish()
     # ############################################################################################
 
 

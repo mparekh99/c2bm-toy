@@ -35,7 +35,7 @@ dataset:
   load_embeddings: false
   load_graph: false
   load_true_graph: false
-  batch_size: 512  # 128 (Pneumo, all SCBM), 512 (all others)
+  batch_size: 16  # 128 (Pneumo, all SCBM), 512 (all others)
   autoencoder:
     noise: 0.5  # for bndatasets only
   num_workers: 0

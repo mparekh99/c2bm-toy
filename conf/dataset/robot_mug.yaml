@@ -4,17 +4,47 @@ defaults:
 
 name: robot_mug
 loader:
-    _target_: src.data.datasets.robot_mug.RobotMugDataset
+    _target_: src.data.datasets.robot_mug.RobotDataset
+    dag_name: robot_mug
+    task_name: mug_successfully_placed_under_dispenser
+    csv_path: /N/u/mihparek/BigRed200/c2bm-toy/template_data/labeled_episodes_raw.csv
+    val_size: 0.1
     test_size: 0.2
     ftune_size: 0.0
+    keep_concepts:
+      - gripper_grabbed_mug_handle
+      - gripper_grabbed_mug_body
+      - gripper_grasp_slipped
+      - gripper_knocked_over_mug
+      - mug_upright_at_end_of_episode
+      - mug_tilted_during_transport
+      - gripper_repeatedly_missed_mug
+      - mug_successfully_placed_under_dispenser
+    # keep_concepts:
+    #   - gripper_grabbed_mug_handle
+    #   - gripper_grabbed_mug_body
+    #   - gripper_grasp_slipped
+    #   - gripper_knocked_over_mug
+    #   - mug_upright_at_end_of_episode
+    #   - mug_tilted_during_transport
+    #   - gripper_repeatedly_missed_mug
+    #   - mug_successfully_placed_under_dispenser
 
-batch_size: 16  # small since you only have 50 episodes
-
-is_image_dataset: true
+is_image_dataset: false
 reduce_fraction: Null
+onehot_to_concepts: false
+load_embeddings: false
+load_graph: false
+load_true_graph: false
+batch_size: 32
+num_workers: 0
 
-load_embeddings: False
-load_graph: False
-load_true_graph: False
-
-label_descriptions: Null
+label_descriptions:
+    gripper_grabbed_mug_handle: "a binary variable indicating whether the gripper grabbed the mug handle."
+    gripper_grabbed_mug_body: "a binary variable indicating whether the gripper grabbed the mug body."
+    gripper_grasp_slipped: "a binary variable indicating whether the gripper grasp slipped."
+    gripper_knocked_over_mug: "a binary variable indicating whether the gripper knocked over the mug."
+    mug_upright_at_end_of_episode: "a binary variable indicating whether the mug was upright at the end of the episode."
+    mug_tilted_during_transport: "a binary variable indicating whether the mug tilted during transport."
+    gripper_repeatedly_missed_mug: "a binary variable indicating whether the gripper repeatedly missed the mug."
+    mug_successfully_placed_under_dispenser: "a binary variable indicating whether the mug was successfully placed under the dispenser."

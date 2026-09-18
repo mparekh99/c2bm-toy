@@ -495,7 +495,7 @@ class Predictor(pl.LightningModule):
         # self.cace_test(batch, 'Safe_Placement', 'Delivery_Feasibility')
         # # Block a node's effect on task node
         # self.cace_test(batch, 'Cup_Overfill', 'Spill_Risk')
-        self.cace_test(batch, 'Wind_Present', 'Spill_Risk')
+        # self.cace_test(batch, 'Wind_Present', 'Spill_Risk')
         # self.cace_test(batch, 'Grip_Stability', 'Spill_Risk')
         # self.cace_test(batch, 'Laptop_Nearby', 'Safe_Placement')
         # self.cace_test(batch, 'Table_Clutter', 'Safe_Placement')

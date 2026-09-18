@@ -5,3 +5,4 @@ output: CPDAG
 
 kwargs:
   ind_test: chisq # possible values: chisq, gsq
+  alpha: 0.2

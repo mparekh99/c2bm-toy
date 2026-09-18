@@ -207,52 +207,8 @@ def preprocess_dataset(cfg, _dataset, device, backbone) -> dict:
                                    c_info=c_info,
                                    y_info=y_info,)
     elif dataset_name == 'robot_mug':
-        from src.data.labelfree_preprocessing import load_robot_clip_model
-        clip_model, clip_processor = load_robot_clip_model(device)
-        dataset.split() 
+       pass
 
-        concepts_path = os.path.join(CACHE, "robot_mug")
-        concepts_file = os.path.join(concepts_path, 'generated_concepts.json')
-
-        if not os.path.exists(concepts_file):
-            concepts = [
-                # mug orientation
-                "mug handle visible",
-                "mug upright",
-                "mug on its side",
-                
-                # gripper-mug relationship  
-                "gripper near mug",
-                "gripper open",
-                "gripper closed around object",
-                
-                # spatial position
-                "mug below dispenser",
-                "mug on counter surface",
-                "mug in air",
-                
-                # robot arm state
-                "robot arm extended",
-                "robot arm retracted",
-            ]
-            os.makedirs(concepts_path, exist_ok=True)
-            with open(concepts_file, 'w') as f:
-                json.dump({'concepts': concepts}, f)
-        else:
-            with open(concepts_file) as f:
-                concepts = json.load(f)['concepts']
-
-
-        dataset = generate_img_embeddings_and_assign_concepts(
-            dataset_name='robot_mug',
-            dataset=dataset,
-            concepts=concepts,
-            clip_model=clip_model,
-            clip_processor=clip_processor,
-            batch_size=256,
-            device=device
-        )
-        dataset.c_info['names'] = [c.replace(' ', '_') for c in dataset.c_info['names']]
     else:
         raise ValueError(f"Preprocessing is missing for dataset: {cfg.dataset.get('name')}")
     
